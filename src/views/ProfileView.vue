@@ -46,7 +46,7 @@
       <button class="nav-btn" @click="goHome">
         <img src="/rsc/home1.png" alt="Home" />
       </button>
-      <button class="nav-btn">
+      <button class="nav-btn" @click="goWizard">
         <img src="/rsc/plus1.png" alt="Add" />
       </button>
       <button class="nav-btn">
@@ -66,6 +66,10 @@ const router = useRouter()
 
 function goHome() {
   router.push('/home')
+}
+
+function goWizard() {
+  router.push('/headache')
 }
 </script>
 

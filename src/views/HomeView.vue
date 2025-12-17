@@ -61,7 +61,7 @@
         <img src="/rsc/home2.png" alt="Home" />
       </button>
 
-      <button class="nav-btn">
+      <button class="nav-btn" @click="goWizard">
         <img src="/rsc/plus1.png" alt="Add" />
       </button>
 
@@ -88,6 +88,10 @@ function goHome() {
 
 function goProfile() {
   router.push('/profile')
+}
+
+function goWizard() {
+  router.push('/headache')
 }
 
 /* Grenzen: Sep 2025 bis Sep 2026 */

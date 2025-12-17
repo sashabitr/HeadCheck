@@ -40,11 +40,22 @@ const isHome = (n) => {
   const s = normalize(n)
   return s === 'home' || s === 'homeview'
 }
+const isIntro = (n) => {
+  const s = normalize(n)
+  return s === 'wizard-intro' || s === 'headache' || s === 'headacheintroview'
+}
+const isWizard = (n) => {
+  const s = normalize(n)
+  return s === 'wizard' || s === 'headache-check'
+}
 
 const shouldBlur = computed(() => {
   const f = fromName.value
   const t = toName.value
-  return (isStart(f) && isHome(t)) || (isHome(f) && isStart(t))
+  const startHome = (isStart(f) && isHome(t)) || (isHome(f) && isStart(t))
+  const introWizard = (isIntro(f) && isWizard(t)) || (isWizard(f) && isIntro(t))
+  const homeIntro = (isHome(f) && isIntro(t)) || (isIntro(f) && isHome(t))
+  return startHome || introWizard || homeIntro
 })
 </script>
 
