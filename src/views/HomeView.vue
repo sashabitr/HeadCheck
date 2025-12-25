@@ -10,13 +10,27 @@
 
       <!-- GREETING -->
       <section class="greeting">
-        <div class="avatar">
-          <img src="/rsc/profile1.png" class="avatar-img" alt="Profile" />
+        <div class="greeting-left">
+          <div class="avatar">
+            <img src="/rsc/profile1.png" class="avatar-img" alt="Profile" />
+          </div>
+
+          <div class="greeting-text">
+            <p class="hi">Hi, User</p>
+          </div>
         </div>
-        <div class="greeting-text">
-          <p class="hi">Hi, User</p>
+
+        <!-- STREAK BADGE -->
+        <div 
+          class="streak-badge"
+          :class="{ 'is-inactive': !hasTodayEntry }"
+        >
+          <span class="streak-emoji">🔥</span>
+          <span class="streak-count">{{ streak }}</span>
         </div>
+
       </section>
+
 
       <!-- MOOD SECTION (noch ohne Emojis) -->
       <section class="mood">
@@ -53,6 +67,33 @@
           </span>
         </div>
       </section>
+
+      <!-- NORMALE WERTE -->
+      <section v-if="triggerNormal" class="normal-section">
+        <h2>Your Usual Habits</h2>
+
+        <div class="normal-card">
+          <div class="normal-row">
+            <span>Sleep</span>
+            <span>{{ triggerNormal.sleep.toFixed(1) }} h</span>
+          </div>
+
+          <div class="normal-row">
+            <span>Screen time</span>
+            <span>{{ triggerNormal.screenTime.toFixed(1) }} h</span>
+          </div>
+
+          <div class="normal-row">
+            <span>Water</span>
+            <span>{{ triggerNormal.water.toFixed(1) }} L</span>
+          </div>
+
+          <div class="normal-row">
+            <span>Caffeine (safe)</span>
+            <span>{{ safeCaffeineCups.toFixed(1) }} cups</span>
+          </div>
+        </div>
+      </section>
     </div>
 
     <!-- BOTTOM NAVIGATION -->
@@ -65,7 +106,7 @@
         <img src="/rsc/plus1.png" alt="Add" />
       </button>
 
-      <button class="nav-btn">
+      <button class="nav-btn" @click="goReport">
         <img src="/rsc/report1.png" alt="Reports" />
       </button>
 
@@ -77,8 +118,43 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+const entries = ref([])
+const streak = ref(0)
+const hasTodayEntry = ref(false) // heute Umfrge gemacht oder nicht
+
+onMounted(async () => {
+  let stored = JSON.parse(
+    localStorage.getItem('headacheEntries')
+  )
+
+  // ⬇️ Nur wenn localStorage noch leer ist
+  if (!stored || stored.length === 0) {
+    const res = await fetch('/headacheEntries.json')
+    stored = await res.json()
+
+    localStorage.setItem(
+      'headacheEntries',
+      JSON.stringify(stored)
+    )
+  }
+
+  entries.value = stored
+
+  const today = new Date().toISOString().slice(0, 10)
+
+  const withoutToday = stored.filter(
+    e => e.date !== today
+  )
+
+  const baseStreak = calculateStreak(withoutToday)
+  hasTodayEntry.value = stored.some(e => e.date === today)
+
+  streak.value = baseStreak + (hasTodayEntry.value ? 1 : 0)
+
+
+})
 
 const router = useRouter()
 
@@ -92,6 +168,10 @@ function goProfile() {
 
 function goWizard() {
   router.push('/headache')
+}
+
+function goReport() {
+  router.push('/headache-report')
 }
 
 /* Grenzen: Sep 2025 bis Sep 2026 */
@@ -181,18 +261,111 @@ function nextMonth() {
     currentMonth.value++
   }
 }
+
+// Streak 
+function calculateStreak(entries) {
+  if (!entries || entries.length === 0) return 0
+
+  // Alle Datum-Strings sortiert (neu → alt)
+  const dates = entries
+    .map(e => e.date)
+    .sort((a, b) => new Date(b) - new Date(a))
+
+  let streak = 0
+
+  // Start bei gestern
+  const expected = new Date()
+  expected.setHours(0, 0, 0, 0)
+  expected.setDate(expected.getDate() - 1)
+
+  for (const d of dates) {
+    const current = new Date(d)
+    current.setHours(0, 0, 0, 0)
+
+    if (current.getTime() === expected.getTime()) {
+      streak++
+      expected.setDate(expected.getDate() - 1)
+    } else {
+      break
+    }
+  }
+
+  return streak
+}
+
+
+// Normal section
+
+const triggerNormal = computed(() => {
+  if (entries.value.length === 0) return null
+
+  // letzte 30 Tage 
+  const lastDate = new Date(
+    entries.value[entries.value.length - 1].date
+  )
+
+  const cutoff = new Date(lastDate)
+  cutoff.setDate(cutoff.getDate() - 29)
+
+  const last30Days = entries.value.filter(
+    e => new Date(e.date) >= cutoff
+  )
+
+  if (last30Days.length === 0) return null
+
+  const avg = (key) =>
+    last30Days.reduce((s, e) => s + Number(e[key] || 0), 0) /
+    last30Days.length
+
+  return {
+    sleep: avg('sleepHours'),
+    screenTime: avg('screenHours'),
+    water: avg('waterLiters'),
+    caffeine:
+      (last30Days.filter(e => e.caffeine).length /
+        last30Days.length) *
+      100,
+  }
+})
+
+const safeCaffeineCups = computed(() => {
+  if (entries.value.length === 0) return null
+
+  // letzte 30 Tage
+  const lastDate = new Date(entries.value.at(-1).date)
+  const cutoff = new Date(lastDate)
+  cutoff.setDate(cutoff.getDate() - 29)
+
+  const last30Days = entries.value.filter(
+    e => new Date(e.date) >= cutoff
+  )
+
+  // nur Tage OHNE Kopfschmerzen
+  const safeDays = last30Days.filter(
+    e => !e.headache && e.caffeineCups > 0
+  )
+
+  if (safeDays.length === 0) return 0
+
+  const avg =
+    safeDays.reduce((s, e) => s + e.caffeineCups, 0) /
+    safeDays.length
+
+  return avg
+})
+
+
+
 </script>
 
 <style scoped>
 /* ========= GANZES LAYOUT ========= */
 .home {
   width: 100%;
-  height: 100%;
+  height: 100vh;              
   background: #49435b;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
   color: #ffffff;
   font-family:
     system-ui,
@@ -202,13 +375,18 @@ function nextMonth() {
     sans-serif;
 }
 
+
 .home-inner {
+  flex: 1;                    
   width: 100%;
   max-width: 430px;
-  flex: 1;
-  padding: 24px 20px 16px;
+  padding: 24px 20px 96px;    
   box-sizing: border-box;
+
+  overflow-y: auto;          
+  margin: 0 auto;
 }
+
 
 /* STATUSBAR */
 .status-bar {
@@ -231,8 +409,51 @@ function nextMonth() {
 .greeting {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   margin-bottom: 24px;
+}
+
+.greeting-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* STREAK BADGE */
+.streak-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.streak-badge:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+.streak-badge.is-inactive {
+  background: rgba(255, 255, 255, 0.08);
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
+.streak-badge.is-inactive .streak-emoji {
+  filter: grayscale(1);
+}
+
+
+.streak-emoji {
+  font-size: 1.2rem;
+}
+
+.streak-count {
+  font-size: 0.95rem;
 }
 
 .avatar {
@@ -296,7 +517,7 @@ function nextMonth() {
   margin-left: auto;
   margin-right: auto;
 
-  height: 360px; /* fixe Höhe */
+  height: 360px;
   box-sizing: border-box;
 
   display: flex;
@@ -381,10 +602,65 @@ function nextMonth() {
   visibility: hidden;
 }
 
+/* ========= NORMAL SECTION ========= */
+.normal-section {
+  margin-top: 32px;
+  text-align: center;
+}
+
+.normal-section h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  opacity: 0.95;
+}
+
+/* Card */
+.normal-card {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Rows */
+.normal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.normal-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+/* Labels */
+.normal-row span:first-child {
+  opacity: 0.85;
+}
+
+/* Values */
+.normal-row span:last-child {
+  font-weight: 600;
+  color: #f2d3c9; 
+}
+
 /* ========= BOTTOM NAVIGATION ========= */
 .bottom-nav {
+  position: fixed;            
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+
   width: 100%;
   max-width: 430px;
+
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   background: #a3767d;
