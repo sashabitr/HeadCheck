@@ -10,6 +10,9 @@
     <!-- Title + Progress -->
     <section class="header">
       <div class="title-row">
+        <button class="close-wizard-btn" type="button" @click.stop="openStopConfirm">
+          close
+        </button>
         <span class="title">Headache Check</span>
         <button class="tip-btn" aria-label="Info" @click.stop="openTip">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -162,6 +165,19 @@
         </div>
       </div>
     </Transition>
+
+    <Transition name="modal-fade">
+      <div v-if="showStopConfirm" class="modal-backdrop" @click.self="closeStopConfirm">
+        <div class="modal">
+          <h3>Stop the check?</h3>
+          <p>you sure you want to stop ?</p>
+          <div class="modal-actions">
+            <button class="secondary-btn" @click="closeStopConfirm">Cancel</button>
+            <button class="close-btn" @click="confirmStop">Stop</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -232,12 +248,24 @@ function closeTip() {
   showTip.value = false
 }
 
+const showStopConfirm = ref(false)
+function openStopConfirm() {
+  showStopConfirm.value = true
+}
+function closeStopConfirm() {
+  showStopConfirm.value = false
+}
+function confirmStop() {
+  showStopConfirm.value = false
+  router.push('/home')
+}
+
 const hasValue = (v) => v !== null && v !== undefined && v !== ''
 const canProceed = computed(() => {
   const v = answers.value
   switch (currentStep.value) {
     case 'headache':
-      return hasValue(v.headache) && hasValue(v.headacheDuration)
+      return hasValue(v.headache) && (v.headache === 'no' || hasValue(v.headacheDuration))
     case 'sleep':
       return hasValue(v.sleepHours) && hasValue(v.sleepQuality)
     case 'water':
@@ -246,7 +274,7 @@ const canProceed = computed(() => {
       if (!hasValue(v.caffeine)) return false
       return v.caffeine === 'no' ? true : hasValue(v.caffeineCups)
     case 'work':
-      return hasValue(v.workHours)
+      return true
     case 'screen':
       return hasValue(v.screenHours)
     case 'stress':
@@ -260,6 +288,9 @@ function goNext() {
   if (isLastStep.value) {
     router.push('/home')
     return
+  }
+  if (currentStep.value === 'work' && !hasValue(answers.value.workHours)) {
+    answers.value.workHours = 0
   }
   stepIndex.value++
 }
@@ -320,9 +351,9 @@ function goNext() {
   letter-spacing: 0.04em;
 }
 
-.tip-btn {
+.tip-btn,
+.close-wizard-btn {
   position: absolute;
-  right: 0;
   background: rgba(0, 0, 0, 0.14);
   border: 1px solid rgba(255, 255, 255, 0.18);
   color: #f1e9f0;
@@ -338,12 +369,26 @@ function goNext() {
     border-color 0.2s ease;
 }
 
-.tip-btn:hover {
+.tip-btn {
+  right: 0;
+}
+
+.close-wizard-btn {
+  left: 0;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: lowercase;
+}
+
+.tip-btn:hover,
+.close-wizard-btn:hover {
   background: rgba(0, 0, 0, 0.22);
   border-color: rgba(255, 255, 255, 0.28);
 }
 
-.tip-btn:active {
+.tip-btn:active,
+.close-wizard-btn:active {
   transform: translateY(1px);
 }
 
@@ -574,7 +619,7 @@ function goNext() {
   border-radius: 16px;
   padding: 20px 20px 18px;
   color: #f1e9f0;
-  width: min(360px, 92vw);
+  width: min(320px, 88vw);
   max-height: 70vh;
   overflow: auto;
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35);
@@ -593,6 +638,38 @@ function goNext() {
   line-height: 1.5;
   opacity: 0.95;
   color: #fdf9ff;
+}
+
+.modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.secondary-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #f1e9f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    transform 0.1s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.secondary-btn:active {
+  transform: translateY(1px);
 }
 
 .close-btn {
