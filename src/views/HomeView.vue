@@ -1,3 +1,4 @@
+<!-- src/views/Home.vue -->
 <template>
   <div class="home">
     <div class="home-inner">
@@ -21,32 +22,35 @@
         </div>
 
         <!-- STREAK BADGE -->
-        <div 
-          class="streak-badge"
-          :class="{ 'is-inactive': !hasTodayEntry }"
-        >
+        <div class="streak-badge" :class="{ 'is-inactive': !hasTodayEntry }">
           <span class="streak-emoji">🔥</span>
           <span class="streak-count">{{ streak }}</span>
         </div>
-
       </section>
 
-
-      <!-- MOOD SECTION (noch ohne Emojis) -->
+      <!-- MOOD SECTION -->
       <section class="mood">
         <h2>Your mood last days</h2>
         <div class="mood-row">
-          <div v-for="n in 5" :key="n" class="mood-slot"></div>
+          <button
+            v-for="emoji in moodEmojis"
+            :key="emoji"
+            type="button"
+            class="mood-slot"
+            :class="{ 'is-selected': selectedMood === emoji }"
+            @click="selectedMood = emoji"
+            :aria-pressed="selectedMood === emoji"
+          >
+            {{ emoji }}
+          </button>
         </div>
       </section>
 
-      <!--  KALENDER -->
+      <!-- KALENDER -->
       <section class="calendar-card">
         <div class="calendar-header">
           <button class="month-arrow" @click="prevMonth" :disabled="isMinMonth">▲</button>
-
           <span class="month-label"> {{ currentMonthName }} {{ currentYear }} </span>
-
           <button class="month-arrow" @click="nextMonth" :disabled="isMaxMonth">▼</button>
         </div>
 
@@ -57,14 +61,21 @@
         </div>
 
         <div class="calendar-grid">
-          <span
-            v-for="(cell, index) in calendarCells"
-            :key="index"
-            class="calendar-day"
-            :class="{ 'is-empty': cell === null }"
-          >
-            {{ cell }}
-          </span>
+          <template v-for="(cell, index) in calendarCells" :key="index">
+            <span v-if="cell === null" class="calendar-day is-empty"></span>
+
+            <button
+              v-else
+              type="button"
+              class="calendar-day-btn"
+              :class="dayButtonClass(cell)"
+              :disabled="!cell.clickable"
+              @click="openHeadacheModal(cell.dateStr)"
+              :aria-label="`Day ${cell.day} ${cell.dateStr}`"
+            >
+              {{ cell.day }}
+            </button>
+          </template>
         </div>
       </section>
 
@@ -96,6 +107,23 @@
       </section>
     </div>
 
+    <!-- MODAL: Kopfschmerzen -->
+    <div v-if="isHeadacheModalOpen" class="modal-backdrop" @click.self="closeHeadacheModal">
+      <div class="modal" role="dialog" aria-modal="true">
+        <p class="modal-text">
+          Did you have a headache on <strong>{{ selectedPrettyDate }}</strong
+          >?
+        </p>
+
+        <div class="modal-actions">
+          <button class="modal-btn is-yes" type="button" @click="saveHeadache(true)">Yes</button>
+          <button class="modal-btn is-no" type="button" @click="saveHeadache(false)">No</button>
+        </div>
+
+        <button class="modal-cancel" type="button" @click="closeHeadacheModal">Cancel</button>
+      </div>
+    </div>
+
     <!-- BOTTOM NAVIGATION -->
     <nav class="bottom-nav">
       <button class="nav-btn is-active" @click="goHome">
@@ -120,60 +148,96 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-const entries = ref([])
-const streak = ref(0)
-const hasTodayEntry = ref(false) // heute Umfrge gemacht oder nicht
-
-onMounted(async () => {
-  let stored = JSON.parse(
-    localStorage.getItem('headacheEntries')
-  )
-
-  // ⬇️ Nur wenn localStorage noch leer ist
-  if (!stored || stored.length === 0) {
-    const res = await fetch('/headacheEntries.json')
-    stored = await res.json()
-
-    localStorage.setItem(
-      'headacheEntries',
-      JSON.stringify(stored)
-    )
-  }
-
-  entries.value = stored
-
-  const today = new Date().toISOString().slice(0, 10)
-
-  const withoutToday = stored.filter(
-    e => e.date !== today
-  )
-
-  const baseStreak = calculateStreak(withoutToday)
-  hasTodayEntry.value = stored.some(e => e.date === today)
-
-  streak.value = baseStreak + (hasTodayEntry.value ? 1 : 0)
-
-
-})
 
 const router = useRouter()
+const storage = import.meta.env.DEV ? sessionStorage : localStorage
 
+const entries = ref([])
+const streak = ref(0)
+const hasTodayEntry = ref(false)
+
+/* ---------- mood ---------- */
+const moodEmojis = ['😄', '🙂', '😐', '😕', '😫']
+const selectedMood = ref(null)
+
+/* ---------- navigation ---------- */
 function goHome() {
   router.push('/home')
 }
-
 function goProfile() {
   router.push('/profile')
 }
-
 function goWizard() {
   router.push('/headache')
 }
-
 function goReport() {
   router.push('/headache-report')
 }
 
+/* ---------- date helpers (lokal, ohne UTC shift) ---------- */
+function pad2(n) {
+  return String(n).padStart(2, '0')
+}
+
+function toLocalIsoDate(date) {
+  return date.toLocaleDateString('en-CA') // YYYY-MM-DD
+}
+
+const todayStr = computed(() => toLocalIsoDate(new Date()))
+
+function makeDateStr(year, monthIndex, day) {
+  return `${year}-${pad2(monthIndex + 1)}-${pad2(day)}`
+}
+
+function isPastOrToday(dateStr) {
+  return dateStr <= todayStr.value
+}
+
+function persist(next) {
+  storage.setItem('headacheEntries', JSON.stringify(next))
+}
+
+/* ---------- streak derived ---------- */
+function recomputeStreakState() {
+  const today = todayStr.value
+  const answered = (entries.value || []).filter((e) => e && e.headacheAnswered === true)
+
+  const withoutToday = answered.filter((e) => e.date !== today)
+  const baseStreak = calculateStreak(withoutToday)
+
+  hasTodayEntry.value = answered.some((e) => e.date === today)
+  streak.value = baseStreak + (hasTodayEntry.value ? 1 : 0)
+}
+
+/* ---------- init + migration + DEV reset ---------- */
+onMounted(async () => {
+  if (import.meta.env.DEV) {
+    storage.removeItem('headacheEntries')
+  }
+
+  let stored = JSON.parse(storage.getItem('headacheEntries'))
+
+  if (!stored || stored.length === 0) {
+    const res = await fetch('/headacheEntries.json')
+    stored = await res.json()
+    storage.setItem('headacheEntries', JSON.stringify(stored))
+  }
+
+  let changed = false
+  stored = (stored || []).map((e) => {
+    if (!e || typeof e !== 'object') return e
+    if (typeof e.headacheAnswered === 'boolean') return e
+    changed = true
+    return { ...e, headacheAnswered: false }
+  })
+
+  if (changed) storage.setItem('headacheEntries', JSON.stringify(stored))
+
+  entries.value = stored
+  recomputeStreakState()
+})
+
+/* ---------- calendar bounds ---------- */
 /* Grenzen: Sep 2025 bis Sep 2026 */
 const minDate = { month: 8, year: 2025 } // September 2025 (0-indexed)
 const maxDate = { month: 8, year: 2026 } // September 2026
@@ -195,7 +259,6 @@ const monthNames = [
   'November',
   'December',
 ]
-
 const currentMonthName = computed(() => monthNames[currentMonth.value])
 
 function getDaysInMonth(year, monthIndex) {
@@ -203,41 +266,13 @@ function getDaysInMonth(year, monthIndex) {
 }
 
 function getMondayBasedFirstWeekday(year, monthIndex) {
-  const jsDay = new Date(year, monthIndex, 1).getDay() // 0 = Sonntag
+  const jsDay = new Date(year, monthIndex, 1).getDay()
   return (jsDay + 6) % 7
 }
-
-/* Immer 6 Reihen × 7 Spalten = 42 Zellen */
-const calendarCells = computed(() => {
-  const year = currentYear.value
-  const month = currentMonth.value
-  const days = getDaysInMonth(year, month)
-  const firstWeekday = getMondayBasedFirstWeekday(year, month)
-
-  const cells = []
-
-  // leere Felder vor dem 1.
-  for (let i = 0; i < firstWeekday; i++) {
-    cells.push(null)
-  }
-
-  // Tage 1..n
-  for (let d = 1; d <= days; d++) {
-    cells.push(d)
-  }
-
-  // auffüllen auf genau 42
-  while (cells.length < 42) {
-    cells.push(null)
-  }
-
-  return cells
-})
 
 const isMinMonth = computed(
   () => currentYear.value === minDate.year && currentMonth.value === minDate.month,
 )
-
 const isMaxMonth = computed(
   () => currentYear.value === maxDate.year && currentMonth.value === maxDate.month,
 )
@@ -262,18 +297,105 @@ function nextMonth() {
   }
 }
 
-// Streak 
-function calculateStreak(entries) {
-  if (!entries || entries.length === 0) return 0
+/* ---------- fast lookup ---------- */
+const entriesByDate = computed(() => {
+  const map = new Map()
+  for (const e of entries.value || []) {
+    if (e?.date) map.set(e.date, e)
+  }
+  return map
+})
 
-  // Alle Datum-Strings sortiert (neu → alt)
-  const dates = entries
-    .map(e => e.date)
-    .sort((a, b) => new Date(b) - new Date(a))
+function getDayStatus(dateStr) {
+  const e = entriesByDate.value.get(dateStr)
+  if (!e || e.headacheAnswered !== true) return null
+  if (e.headache === true) return 'red'
+  if (e.headache === false) return 'green'
+  return null
+}
 
-  let streak = 0
+/* ---------- calendar cells ---------- */
+const calendarCells = computed(() => {
+  const year = currentYear.value
+  const month = currentMonth.value
+  const days = getDaysInMonth(year, month)
+  const firstWeekday = getMondayBasedFirstWeekday(year, month)
 
-  // Start bei gestern
+  const cells = []
+
+  for (let i = 0; i < firstWeekday; i++) cells.push(null)
+
+  for (let d = 1; d <= days; d++) {
+    const dateStr = makeDateStr(year, month, d)
+    cells.push({
+      day: d,
+      dateStr,
+      clickable: isPastOrToday(dateStr),
+      status: getDayStatus(dateStr),
+    })
+  }
+
+  while (cells.length < 42) cells.push(null)
+  return cells
+})
+
+function dayButtonClass(cell) {
+  return {
+    'is-clickable': cell.clickable,
+    'has-status': cell.status === 'red' || cell.status === 'green',
+    'is-headache': cell.status === 'red',
+    'is-noheadache': cell.status === 'green',
+  }
+}
+
+/* ---------- modal ---------- */
+const isHeadacheModalOpen = ref(false)
+const selectedDateStr = ref('')
+
+const selectedPrettyDate = computed(() => {
+  if (!selectedDateStr.value) return ''
+  const [yyyy, mm, dd] = selectedDateStr.value.split('-')
+  return `${dd}.${mm}.${yyyy}`
+})
+
+function openHeadacheModal(dateStr) {
+  if (!isPastOrToday(dateStr)) return
+  selectedDateStr.value = dateStr
+  isHeadacheModalOpen.value = true
+}
+
+function closeHeadacheModal() {
+  isHeadacheModalOpen.value = false
+  selectedDateStr.value = ''
+}
+
+function saveHeadache(hasHeadache) {
+  const dateStr = selectedDateStr.value
+  if (!dateStr) return
+
+  const next = [...(entries.value || [])]
+  const idx = next.findIndex((e) => e?.date === dateStr)
+
+  if (idx >= 0) {
+    next[idx] = { ...next[idx], headache: hasHeadache, headacheAnswered: true }
+  } else {
+    next.push({ date: dateStr, headache: hasHeadache, headacheAnswered: true })
+  }
+
+  next.sort((a, b) => new Date(a.date) - new Date(b.date))
+  entries.value = next
+  persist(next)
+  recomputeStreakState()
+  closeHeadacheModal()
+}
+
+/* ---------- streak ---------- */
+function calculateStreak(entriesList) {
+  if (!entriesList || entriesList.length === 0) return 0
+
+  const dates = entriesList.map((e) => e.date).sort((a, b) => new Date(b) - new Date(a))
+
+  let s = 0
   const expected = new Date()
   expected.setHours(0, 0, 0, 0)
   expected.setDate(expected.getDate() - 1)
@@ -283,86 +405,57 @@ function calculateStreak(entries) {
     current.setHours(0, 0, 0, 0)
 
     if (current.getTime() === expected.getTime()) {
-      streak++
+      s++
       expected.setDate(expected.getDate() - 1)
     } else {
       break
     }
   }
 
-  return streak
+  return s
 }
 
-
-// Normal section
-
+/* ---------- Normal section ---------- */
 const triggerNormal = computed(() => {
   if (entries.value.length === 0) return null
 
-  // letzte 30 Tage 
-  const lastDate = new Date(
-    entries.value[entries.value.length - 1].date
-  )
-
+  const lastDate = new Date(entries.value[entries.value.length - 1].date)
   const cutoff = new Date(lastDate)
   cutoff.setDate(cutoff.getDate() - 29)
 
-  const last30Days = entries.value.filter(
-    e => new Date(e.date) >= cutoff
-  )
-
+  const last30Days = entries.value.filter((e) => new Date(e.date) >= cutoff)
   if (last30Days.length === 0) return null
 
-  const avg = (key) =>
-    last30Days.reduce((s, e) => s + Number(e[key] || 0), 0) /
-    last30Days.length
+  const avg = (key) => last30Days.reduce((s, e) => s + Number(e[key] || 0), 0) / last30Days.length
 
   return {
     sleep: avg('sleepHours'),
     screenTime: avg('screenHours'),
     water: avg('waterLiters'),
-    caffeine:
-      (last30Days.filter(e => e.caffeine).length /
-        last30Days.length) *
-      100,
+    caffeine: (last30Days.filter((e) => e.caffeine).length / last30Days.length) * 100,
   }
 })
 
 const safeCaffeineCups = computed(() => {
-  if (entries.value.length === 0) return null
+  if (entries.value.length === 0) return 0
 
-  // letzte 30 Tage
   const lastDate = new Date(entries.value.at(-1).date)
   const cutoff = new Date(lastDate)
   cutoff.setDate(cutoff.getDate() - 29)
 
-  const last30Days = entries.value.filter(
-    e => new Date(e.date) >= cutoff
-  )
-
-  // nur Tage OHNE Kopfschmerzen
-  const safeDays = last30Days.filter(
-    e => !e.headache && e.caffeineCups > 0
-  )
+  const last30Days = entries.value.filter((e) => new Date(e.date) >= cutoff)
+  const safeDays = last30Days.filter((e) => !e.headache && Number(e.caffeineCups || 0) > 0)
 
   if (safeDays.length === 0) return 0
-
-  const avg =
-    safeDays.reduce((s, e) => s + e.caffeineCups, 0) /
-    safeDays.length
-
-  return avg
+  return safeDays.reduce((s, e) => s + Number(e.caffeineCups || 0), 0) / safeDays.length
 })
-
-
-
 </script>
 
 <style scoped>
 /* ========= GANZES LAYOUT ========= */
 .home {
   width: 100%;
-  height: 100vh;              
+  height: 100vh;
   background: #49435b;
   display: flex;
   flex-direction: column;
@@ -375,18 +468,15 @@ const safeCaffeineCups = computed(() => {
     sans-serif;
 }
 
-
 .home-inner {
-  flex: 1;                    
+  flex: 1;
   width: 100%;
   max-width: 430px;
-  padding: 24px 20px 96px;    
+  padding: 24px 20px 96px;
   box-sizing: border-box;
-
-  overflow-y: auto;          
+  overflow-y: auto;
   margin: 0 auto;
 }
-
 
 /* STATUSBAR */
 .status-bar {
@@ -430,13 +520,16 @@ const safeCaffeineCups = computed(() => {
   padding: 6px 12px;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
 }
 
 .streak-badge:hover {
   background: rgba(255, 255, 255, 0.2);
   transform: scale(1.05);
 }
+
 .streak-badge.is-inactive {
   background: rgba(255, 255, 255, 0.08);
   opacity: 0.45;
@@ -446,7 +539,6 @@ const safeCaffeineCups = computed(() => {
 .streak-badge.is-inactive .streak-emoji {
   filter: grayscale(1);
 }
-
 
 .streak-emoji {
   font-size: 1.2rem;
@@ -502,6 +594,37 @@ const safeCaffeineCups = computed(() => {
   height: 40px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.08);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 1.6rem;
+
+  border: none;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.12s ease,
+    filter 0.12s ease;
+}
+
+.mood-slot:hover {
+  background: rgba(255, 255, 255, 0.12);
+  filter: brightness(1.03);
+}
+
+.mood-slot:active {
+  transform: translateY(1px);
+}
+
+.mood-slot.is-selected {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.mood-slot:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.55);
+  outline-offset: 2px;
 }
 
 /* ========= KALENDER ========= */
@@ -511,20 +634,16 @@ const safeCaffeineCups = computed(() => {
   border-radius: 16px;
   background: #a3767d;
   color: #f7f2f5;
-
   width: 100%;
   max-width: 95%;
   margin-left: auto;
   margin-right: auto;
-
   height: 360px;
   box-sizing: border-box;
-
   display: flex;
   flex-direction: column;
 }
 
-/* Header mit Pfeilen */
 .calendar-header {
   display: flex;
   align-items: center;
@@ -566,7 +685,6 @@ const safeCaffeineCups = computed(() => {
   text-transform: capitalize;
 }
 
-/* Wochentage */
 .calendar-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -579,7 +697,6 @@ const safeCaffeineCups = computed(() => {
   text-align: center;
 }
 
-/* Grid: füllt den restlichen Platz fix aus */
 .calendar-grid {
   flex: 1;
   display: grid;
@@ -589,17 +706,51 @@ const safeCaffeineCups = computed(() => {
   font-size: 0.95rem;
 }
 
-.calendar-day {
-  text-align: center;
-  padding: 4px 0;
+.calendar-day.is-empty {
+  visibility: hidden;
+}
+
+.calendar-day-btn {
+  border: none;
+  background: transparent;
+  color: #2a2328;
+  font: inherit;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 999px;
+  cursor: default;
+  opacity: 0.65;
+  user-select: none;
 }
 
-/* Leere Felder bleiben unsichtbar, halten aber die Höhe */
-.calendar-day.is-empty {
-  visibility: hidden;
+.calendar-day-btn.is-clickable {
+  cursor: pointer;
+  opacity: 1;
+}
+
+.calendar-day-btn:disabled {
+  cursor: default;
+  opacity: 0.25;
+}
+
+.calendar-day-btn.is-clickable:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.calendar-day-btn.has-status {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto;
+  color: rgba(0, 0, 0, 0.72);
+}
+
+.calendar-day-btn.has-status.is-headache {
+  background: #f08a86;
+}
+
+.calendar-day-btn.has-status.is-noheadache {
+  background: #b8e39a;
 }
 
 /* ========= NORMAL SECTION ========= */
@@ -615,7 +766,6 @@ const safeCaffeineCups = computed(() => {
   opacity: 0.95;
 }
 
-/* Card */
 .normal-card {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 16px;
@@ -625,7 +775,6 @@ const safeCaffeineCups = computed(() => {
   gap: 12px;
 }
 
-/* Rows */
 .normal-row {
   display: flex;
   justify-content: space-between;
@@ -640,27 +789,113 @@ const safeCaffeineCups = computed(() => {
   padding-bottom: 0;
 }
 
-/* Labels */
 .normal-row span:first-child {
   opacity: 0.85;
 }
 
-/* Values */
 .normal-row span:last-child {
   font-weight: 600;
-  color: #f2d3c9; 
+  color: #f2d3c9;
+}
+
+/* ========= MODAL (wizard purple background + red/green buttons) ========= */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 50;
+}
+
+.modal {
+  width: 100%;
+  max-width: 360px;
+  background: rgba(35, 32, 48, 0.94);
+  color: #f7f2f5;
+  border-radius: 18px;
+  padding: 18px 16px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modal-text {
+  margin: 0 0 14px;
+  opacity: 0.9;
+  line-height: 1.35;
+}
+
+.modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.modal-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease,
+    background 0.12s ease;
+}
+
+.modal-btn:hover {
+  filter: brightness(1.05);
+}
+
+.modal-btn:active {
+  transform: translateY(1px);
+}
+
+.modal-btn.is-yes {
+  background: #f08a86;
+  color: rgba(0, 0, 0, 0.75);
+}
+
+.modal-btn.is-no {
+  background: #b8e39a;
+  color: rgba(0, 0, 0, 0.75);
+}
+
+.modal-cancel {
+  width: 100%;
+  border: 1px solid rgba(111, 88, 168, 0.75);
+  background: rgba(111, 88, 168, 0.18);
+  color: #f7f2f5;
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 800;
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease,
+    background 0.12s ease;
+}
+
+.modal-cancel:hover {
+  filter: brightness(1.06);
+}
+
+.modal-cancel:active {
+  transform: translateY(1px);
 }
 
 /* ========= BOTTOM NAVIGATION ========= */
 .bottom-nav {
-  position: fixed;            
+  position: fixed;
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
-
   width: 100%;
   max-width: 430px;
-
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   background: #a3767d;
