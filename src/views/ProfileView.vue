@@ -49,7 +49,7 @@
       <button class="nav-btn" @click="goWizard">
         <img src="/rsc/plus1.png" alt="Add" />
       </button>
-      <button class="nav-btn">
+      <button class="nav-btn" @click="goReport">
         <img src="/rsc/report1.png" alt="Reports" />
       </button>
       <button class="nav-btn is-active">
@@ -70,6 +70,10 @@ function goHome() {
 
 function goWizard() {
   router.push('/headache')
+}
+
+function goReport() {
+  router.push('/headache-report')
 }
 </script>
 

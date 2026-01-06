@@ -284,9 +284,16 @@ const canProceed = computed(() => {
   }
 })
 
-function goNext() {
+async function goNext() {
   if (isLastStep.value) {
-    router.push('/home')
+    saveEntry()
+
+    const finalStreak = calculateFinalStreak()
+
+    router.push({
+      name: 'streak',
+      params: { streak: finalStreak }
+    })
     return
   }
   if (currentStep.value === 'work' && !hasValue(answers.value.workHours)) {
@@ -294,6 +301,84 @@ function goNext() {
   }
   stepIndex.value++
 }
+
+
+function buildEntry() {
+  return {
+    date: new Date().toISOString().slice(0, 10), // YYYY-MM-DD
+    headache: answers.value.headache === 'yes',
+    headacheDurationHours: Number(answers.value.headacheDuration),
+    sleepHours: Number(answers.value.sleepHours),
+    sleepRating: Number(answers.value.sleepQuality),
+    waterLiters: Number(answers.value.waterLiters),
+    caffeine: answers.value.caffeine === 'yes',
+    caffeineCups: Number(answers.value.caffeineCups || 0),
+    workHours: Number(answers.value.workHours),
+    screenHours: Number(answers.value.screenHours),
+    stressLevel: Number(answers.value.stressLevel),
+  }
+}
+
+function saveEntry() {
+  const entry = buildEntry()
+  const existing = JSON.parse(localStorage.getItem('headacheEntries') || '[]')
+
+  const index = existing.findIndex(e => e.date === entry.date)
+
+  if (index !== -1) {
+    existing[index] = entry // überschreiben
+  } else {
+    existing.push(entry)
+  }
+
+  localStorage.setItem('headacheEntries', JSON.stringify(existing, null, 2))
+}
+
+function calculateStreak(entries) {
+  if (!entries || entries.length === 0) return 0
+
+  const dates = entries
+    .map(e => e.date)
+    .sort((a, b) => new Date(b) - new Date(a))
+
+  let streak = 0
+
+  // Start bei GESTERN
+  const expected = new Date()
+  expected.setHours(0, 0, 0, 0)
+  expected.setDate(expected.getDate() - 1)
+
+  for (const d of dates) {
+    const current = new Date(d)
+    current.setHours(0, 0, 0, 0)
+
+    if (current.getTime() === expected.getTime()) {
+      streak++
+      expected.setDate(expected.getDate() - 1)
+    } else {
+      break
+    }
+  }
+
+  return streak
+}
+
+function calculateFinalStreak() {
+  const stored = JSON.parse(
+    localStorage.getItem('headacheEntries') || '[]'
+  )
+
+  const today = new Date().toISOString().slice(0, 10)
+
+  // heute NICHT mitzählen
+  const withoutToday = stored.filter(e => e.date !== today)
+
+  const baseStreak = calculateStreak(withoutToday)
+
+  // heute wurde abgeschlossen += 1
+  return baseStreak + 1
+}
+
 </script>
 
 <style scoped>
