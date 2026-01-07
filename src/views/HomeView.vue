@@ -148,9 +148,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { didDailySurveyToday } from '@/state/dailyState'
 
 const router = useRouter()
-const storage = import.meta.env.DEV ? sessionStorage : localStorage
 
 const entries = ref([])
 const streak = ref(0)
@@ -193,49 +193,68 @@ function isPastOrToday(dateStr) {
   return dateStr <= todayStr.value
 }
 
-function persist(next) {
-  storage.setItem('headacheEntries', JSON.stringify(next))
-}
+/* ---------- init + migration + DEV reset ---------- */
+onMounted(async () => {
+  const res = await fetch('/headacheEntries.json')
+  const data = await res.json()
 
-/* ---------- streak derived ---------- */
+  entries.value = (data || []).map((e) => {
+    const headacheIsBool = typeof e?.headache === 'boolean'
+
+    return {
+      ...e,
+      // Wenn headache true/false ist, dann gilt der Tag als beantwortet
+      headacheAnswered: typeof e?.headacheAnswered === 'boolean'
+        ? e.headacheAnswered
+        : headacheIsBool,
+    }
+  })
+
+  recomputeStreakState()
+})
+
+
 function recomputeStreakState() {
   const today = todayStr.value
-  const answered = (entries.value || []).filter((e) => e && e.headacheAnswered === true)
 
-  const withoutToday = answered.filter((e) => e.date !== today)
-  const baseStreak = calculateStreak(withoutToday)
+  // beantwortete Tage NUR bis gestern (date < today)
+  const answeredBeforeToday = (entries.value || [])
+    .filter(e => e && e.headacheAnswered === true && e.date < today)
 
-  hasTodayEntry.value = answered.some((e) => e.date === today)
+  const baseStreak = calculateStreak(answeredBeforeToday)
+
+  // “Heute gemacht?” kommt NICHT aus JSON, sondern nur aus Memory
+  hasTodayEntry.value = didDailySurveyToday.value
   streak.value = baseStreak + (hasTodayEntry.value ? 1 : 0)
 }
 
-/* ---------- init + migration + DEV reset ---------- */
-onMounted(async () => {
-  if (import.meta.env.DEV) {
-    storage.removeItem('headacheEntries')
+/* ---------- streak ---------- */
+function calculateStreak(entriesList) {
+  if (!entriesList || entriesList.length === 0) return 0
+
+  const dates = entriesList.map((e) => e.date).sort((a, b) => new Date(b) - new Date(a))
+
+  let s = 0
+  const expected = new Date()
+  expected.setHours(0, 0, 0, 0)
+  expected.setDate(expected.getDate() - 1)
+
+  for (const d of dates) {
+    const current = new Date(d)
+    current.setHours(0, 0, 0, 0)
+
+    if (current.getTime() === expected.getTime()) {
+      s++
+      expected.setDate(expected.getDate() - 1)
+    } else {
+      break
+    }
   }
 
-  let stored = JSON.parse(storage.getItem('headacheEntries'))
+  return s
+}
 
-  if (!stored || stored.length === 0) {
-    const res = await fetch('/headacheEntries.json')
-    stored = await res.json()
-    storage.setItem('headacheEntries', JSON.stringify(stored))
-  }
 
-  let changed = false
-  stored = (stored || []).map((e) => {
-    if (!e || typeof e !== 'object') return e
-    if (typeof e.headacheAnswered === 'boolean') return e
-    changed = true
-    return { ...e, headacheAnswered: false }
-  })
-
-  if (changed) storage.setItem('headacheEntries', JSON.stringify(stored))
-
-  entries.value = stored
-  recomputeStreakState()
-})
 
 /* ---------- calendar bounds ---------- */
 /* Grenzen: Sep 2025 bis Sep 2026 */
@@ -370,6 +389,8 @@ function closeHeadacheModal() {
 }
 
 function saveHeadache(hasHeadache) {
+  // optional: nur im RAM markieren, wenn du es im Kalender einfärben willst,
+  // aber ohne persist ist es nach reload weg
   const dateStr = selectedDateStr.value
   if (!dateStr) return
 
@@ -384,35 +405,8 @@ function saveHeadache(hasHeadache) {
 
   next.sort((a, b) => new Date(a.date) - new Date(b.date))
   entries.value = next
-  persist(next)
   recomputeStreakState()
   closeHeadacheModal()
-}
-
-/* ---------- streak ---------- */
-function calculateStreak(entriesList) {
-  if (!entriesList || entriesList.length === 0) return 0
-
-  const dates = entriesList.map((e) => e.date).sort((a, b) => new Date(b) - new Date(a))
-
-  let s = 0
-  const expected = new Date()
-  expected.setHours(0, 0, 0, 0)
-  expected.setDate(expected.getDate() - 1)
-
-  for (const d of dates) {
-    const current = new Date(d)
-    current.setHours(0, 0, 0, 0)
-
-    if (current.getTime() === expected.getTime()) {
-      s++
-      expected.setDate(expected.getDate() - 1)
-    } else {
-      break
-    }
-  }
-
-  return s
 }
 
 /* ---------- Normal section ---------- */

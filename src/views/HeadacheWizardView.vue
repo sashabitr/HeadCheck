@@ -184,6 +184,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { didDailySurveyToday } from '@/state/dailyState'
 
 const router = useRouter()
 
@@ -286,16 +287,14 @@ const canProceed = computed(() => {
 
 async function goNext() {
   if (isLastStep.value) {
-    saveEntry()
+    didDailySurveyToday.value = true
 
-    const finalStreak = calculateFinalStreak()
+    const finalStreak = await calculateFinalStreakFromJson() // siehe unten
 
-    router.push({
-      name: 'streak',
-      params: { streak: finalStreak }
-    })
+    router.push({ name: 'streak', params: { streak: finalStreak } })
     return
   }
+
   if (currentStep.value === 'work' && !hasValue(answers.value.workHours)) {
     answers.value.workHours = 0
   }
@@ -303,35 +302,9 @@ async function goNext() {
 }
 
 
-function buildEntry() {
-  return {
-    date: new Date().toISOString().slice(0, 10), // YYYY-MM-DD
-    headache: answers.value.headache === 'yes',
-    headacheDurationHours: Number(answers.value.headacheDuration),
-    sleepHours: Number(answers.value.sleepHours),
-    sleepRating: Number(answers.value.sleepQuality),
-    waterLiters: Number(answers.value.waterLiters),
-    caffeine: answers.value.caffeine === 'yes',
-    caffeineCups: Number(answers.value.caffeineCups || 0),
-    workHours: Number(answers.value.workHours),
-    screenHours: Number(answers.value.screenHours),
-    stressLevel: Number(answers.value.stressLevel),
-  }
-}
 
-function saveEntry() {
-  const entry = buildEntry()
-  const existing = JSON.parse(localStorage.getItem('headacheEntries') || '[]')
-
-  const index = existing.findIndex(e => e.date === entry.date)
-
-  if (index !== -1) {
-    existing[index] = entry // überschreiben
-  } else {
-    existing.push(entry)
-  }
-
-  localStorage.setItem('headacheEntries', JSON.stringify(existing, null, 2))
+function toLocalIsoDate(date) {
+  return date.toLocaleDateString('en-CA') // YYYY-MM-DD
 }
 
 function calculateStreak(entries) {
@@ -342,8 +315,6 @@ function calculateStreak(entries) {
     .sort((a, b) => new Date(b) - new Date(a))
 
   let streak = 0
-
-  // Start bei GESTERN
   const expected = new Date()
   expected.setHours(0, 0, 0, 0)
   expected.setDate(expected.getDate() - 1)
@@ -359,25 +330,29 @@ function calculateStreak(entries) {
       break
     }
   }
-
   return streak
 }
 
-function calculateFinalStreak() {
-  const stored = JSON.parse(
-    localStorage.getItem('headacheEntries') || '[]'
-  )
+async function calculateFinalStreakFromJson() {
+  const res = await fetch('/headacheEntries.json')
+  const data = await res.json()
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = toLocalIsoDate(new Date())
 
-  // heute NICHT mitzählen
-  const withoutToday = stored.filter(e => e.date !== today)
+  // answered = entweder headacheAnswered true ODER headache ist boolean
+  const answeredBeforeToday = (data || [])
+    .map(e => ({
+      ...e,
+      headacheAnswered: typeof e?.headacheAnswered === 'boolean'
+        ? e.headacheAnswered
+        : (typeof e?.headache === 'boolean'),
+    }))
+    .filter(e => e.headacheAnswered === true && e.date < today)
 
-  const baseStreak = calculateStreak(withoutToday)
-
-  // heute wurde abgeschlossen += 1
-  return baseStreak + 1
+  const base = calculateStreak(answeredBeforeToday)
+  return base + 1
 }
+
 
 </script>
 

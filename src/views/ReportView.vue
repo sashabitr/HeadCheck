@@ -211,10 +211,18 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { didDailySurveyToday } from '@/state/dailyState'
 
 const range = ref('week')
 const router = useRouter()
 const entries = ref([])
+
+const todayStr = computed(() => toLocalIsoDate(new Date()))
+
+const reportEndDate = computed(() => {
+  // wenn Umfrage NICHT finished: nur bis gestern
+  return didDailySurveyToday.value ? todayStr.value : addDays(todayStr.value, -1)
+})
 
 // Zeitraum filtern
 const filteredEntries = computed(() => {
@@ -225,18 +233,28 @@ const filteredEntries = computed(() => {
     range.value === '2weeks' ? 14 :
     30
 
-  // 🔑 letztes Datum aus den Daten
-  const lastDate = new Date(
-    entries.value[entries.value.length - 1].date
-  )
+  const end = reportEndDate.value // heute oder gestern
+  const start = addDays(end, -(days - 1))
 
-  const cutoff = new Date(lastDate)
-  cutoff.setDate(cutoff.getDate() - days + 1)
-
-  return entries.value.filter(
-    e => new Date(e.date) >= cutoff
+  // nur beantwortete Tage im Zeitraum (optional, aber meist sinnvoll)
+  return entries.value.filter(e =>
+    e.date >= start &&
+    e.date <= end &&
+    e.headacheAnswered === true
   )
 })
+
+
+function toLocalIsoDate(date) {
+  return date.toLocaleDateString('en-CA')
+}
+
+function addDays(isoDateStr, delta) {
+  const d = new Date(isoDateStr + 'T00:00:00')
+  d.setDate(d.getDate() + delta)
+  return toLocalIsoDate(d)
+}
+
 
 
 const headacheDays = computed(() =>
@@ -330,33 +348,20 @@ const triggerPercentages = computed(() => {
 
 
 onMounted(async () => {
-  const stored = JSON.parse(localStorage.getItem('headacheEntries') || '[]')
+  const res = await fetch('/headacheEntries.json')
+  const data = await res.json()
 
-  let seed = []
-  try {
-    const res = await fetch('/headacheEntries.json')
-
-    seed = await res.json()
-  } catch (err) {
-    console.error('Failed to load headacheEntries.json', err)
-  }
-
-  const merged = new Map()
-
-  // Seed-Daten
-  seed.forEach(e => {
-    merged.set(e.date, e)
-  })
-
-  // User-Daten überschreiben Seed
-  stored.forEach(e => {
-    merged.set(e.date, e)
-  })
-
-  entries.value = Array.from(merged.values()).sort(
-    (a, b) => new Date(a.date) - new Date(b.date)
-  )
+  entries.value = (data || []).map((e) => {
+    const headacheIsBool = typeof e?.headache === 'boolean'
+    return {
+      ...e,
+      headacheAnswered: typeof e?.headacheAnswered === 'boolean'
+        ? e.headacheAnswered
+        : headacheIsBool,
+    }
+  }).sort((a, b) => new Date(a.date) - new Date(b.date))
 })
+
 
 // Logik der Kreisberechnung
 const radius = 45
