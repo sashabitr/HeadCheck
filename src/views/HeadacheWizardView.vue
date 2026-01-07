@@ -1,3 +1,4 @@
+<!-- Wizard -->
 <template>
   <div class="wizard">
     <!-- Status bar -->
@@ -10,9 +11,7 @@
     <!-- Title + Progress -->
     <section class="header">
       <div class="title-row">
-        <button class="close-wizard-btn" type="button" @click.stop="openStopConfirm">
-          close
-        </button>
+        <button class="close-wizard-btn" type="button" @click.stop="openStopConfirm">close</button>
         <span class="title">Headache Check</span>
         <button class="tip-btn" aria-label="Info" @click.stop="openTip">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -26,8 +25,18 @@
             />
             <path d="M10 20.2h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
             <path d="M12 2.8v1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-            <path d="M5.6 6.2 6.7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-            <path d="M18.4 6.2 17.3 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path
+              d="M5.6 6.2 6.7 7"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
+            <path
+              d="M18.4 6.2 17.3 7"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+            />
           </svg>
         </button>
       </div>
@@ -88,7 +97,13 @@
           <div v-else-if="currentStep === 'water'">
             <h2>How much water did you drink today?</h2>
             <div class="input-with-suffix field-inline">
-              <input v-model="answers.waterLiters" type="number" min="0" step="0.1" placeholder="0" />
+              <input
+                v-model="answers.waterLiters"
+                type="number"
+                min="0"
+                step="0.1"
+                placeholder="0"
+              />
               <span>L</span>
             </div>
           </div>
@@ -186,6 +201,8 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { didDailySurveyToday } from '@/state/dailyState'
 
+const DAILY_SURVEY_STORAGE_KEY = 'dailySurveyResult'
+
 const router = useRouter()
 
 const steps = ['headache', 'sleep', 'water', 'caffeine', 'work', 'screen', 'stress']
@@ -209,59 +226,9 @@ const stepNumber = computed(() => stepIndex.value + 1)
 const currentStep = computed(() => steps[stepIndex.value])
 const isLastStep = computed(() => stepNumber.value === totalSteps)
 const progressWidth = computed(() => `${(stepNumber.value / totalSteps) * 100}%`)
-const tips = {
-  headache: {
-    title: 'Quick note',
-    body: 'Logging headaches daily helps spot patterns faster.',
-  },
-  sleep: {
-    title: "Don't forget",
-    body: 'Your body needs at least 8 hours of sleep to fully recharge. 🛏️',
-  },
-  water: {
-    title: 'Remember to stay hydrated!',
-    body: 'Many people need around 2–3 liters (8–12 cups) of water per day. 💧',
-  },
-  caffeine: {
-    title: 'Coffee guide',
-    body: 'Many people stay under 3–4 cups of coffee a day. ☕',
-  },
-  work: {
-    title: 'Productivity',
-    body: 'Take short breaks from work or study from time to time. ☕🧘',
-  },
-  screen: {
-    title: 'Screen time',
-    body: 'Long screen sessions can trigger headaches. 🖥️',
-  },
-  stress: {
-    title: 'Your stress level',
-    body: 'Your body needs a break from stress sometimes. 🧠',
-  },
-}
-const currentTip = computed(() => tips[currentStep.value] ?? { title: 'Tip', body: 'Keep your entries consistent each day.' })
-
-const showTip = ref(false)
-function openTip() {
-  showTip.value = true
-}
-function closeTip() {
-  showTip.value = false
-}
-
-const showStopConfirm = ref(false)
-function openStopConfirm() {
-  showStopConfirm.value = true
-}
-function closeStopConfirm() {
-  showStopConfirm.value = false
-}
-function confirmStop() {
-  showStopConfirm.value = false
-  router.push('/home')
-}
 
 const hasValue = (v) => v !== null && v !== undefined && v !== ''
+
 const canProceed = computed(() => {
   const v = answers.value
   switch (currentStep.value) {
@@ -285,34 +252,43 @@ const canProceed = computed(() => {
   }
 })
 
-async function goNext() {
-  if (isLastStep.value) {
-    didDailySurveyToday.value = true
-
-    const finalStreak = await calculateFinalStreakFromJson() // siehe unten
-
-    router.push({ name: 'streak', params: { streak: finalStreak } })
-    return
-  }
-
-  if (currentStep.value === 'work' && !hasValue(answers.value.workHours)) {
-    answers.value.workHours = 0
-  }
-  stepIndex.value++
-}
-
-
-
 function toLocalIsoDate(date) {
   return date.toLocaleDateString('en-CA') // YYYY-MM-DD
+}
+
+function persistTodaySurveyToLocalStorage() {
+  const today = toLocalIsoDate(new Date())
+
+  const headacheYesNo = answers.value.headache
+  if (headacheYesNo !== 'yes' && headacheYesNo !== 'no') return
+
+  const payload = {
+    date: today,
+    headacheAnswered: true,
+    headache: headacheYesNo === 'yes', // <- Home kann boolean korrekt zu red/green mappen
+    headacheDuration: Number(answers.value.headacheDuration || 0),
+    sleepHours: Number(answers.value.sleepHours || 0),
+    sleepQuality: Number(answers.value.sleepQuality || 0),
+    waterLiters: Number(answers.value.waterLiters || 0),
+    caffeine: answers.value.caffeine === 'yes',
+    caffeineCups: Number(answers.value.caffeineCups || 0),
+    workHours: Number(answers.value.workHours || 0),
+    screenHours: Number(answers.value.screenHours || 0),
+    stressLevel: Number(answers.value.stressLevel || 0),
+    updatedAt: new Date().toISOString(),
+  }
+
+  try {
+    localStorage.setItem(DAILY_SURVEY_STORAGE_KEY, JSON.stringify(payload))
+  } catch {
+    // if storage is blocked/full, Home won't be able to mark today
+  }
 }
 
 function calculateStreak(entries) {
   if (!entries || entries.length === 0) return 0
 
-  const dates = entries
-    .map(e => e.date)
-    .sort((a, b) => new Date(b) - new Date(a))
+  const dates = entries.map((e) => e.date).sort((a, b) => new Date(b) - new Date(a))
 
   let streak = 0
   const expected = new Date()
@@ -339,21 +315,38 @@ async function calculateFinalStreakFromJson() {
 
   const today = toLocalIsoDate(new Date())
 
-  // answered = entweder headacheAnswered true ODER headache ist boolean
   const answeredBeforeToday = (data || [])
-    .map(e => ({
+    .map((e) => ({
       ...e,
-      headacheAnswered: typeof e?.headacheAnswered === 'boolean'
-        ? e.headacheAnswered
-        : (typeof e?.headache === 'boolean'),
+      headacheAnswered:
+        typeof e?.headacheAnswered === 'boolean'
+          ? e.headacheAnswered
+          : typeof e?.headache === 'boolean',
     }))
-    .filter(e => e.headacheAnswered === true && e.date < today)
+    .filter((e) => e.headacheAnswered === true && e.date < today)
 
   const base = calculateStreak(answeredBeforeToday)
   return base + 1
 }
 
+async function goNext() {
+  if (isLastStep.value) {
+    // 1) persist for Home calendar "today"
+    persistTodaySurveyToLocalStorage()
 
+    // 2) in-memory flag (streak badge etc.)
+    didDailySurveyToday.value = true
+
+    const finalStreak = await calculateFinalStreakFromJson()
+    router.push({ name: 'streak', params: { streak: finalStreak } })
+    return
+  }
+
+  if (currentStep.value === 'work' && !hasValue(answers.value.workHours)) {
+    answers.value.workHours = 0
+  }
+  stepIndex.value++
+}
 </script>
 
 <style scoped>

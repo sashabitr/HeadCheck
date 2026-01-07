@@ -69,8 +69,7 @@
               type="button"
               class="calendar-day-btn"
               :class="dayButtonClass(cell)"
-              :disabled="!cell.clickable"
-              @click="openHeadacheModal(cell.dateStr)"
+              :disabled="true"
               :aria-label="`Day ${cell.day} ${cell.dateStr}`"
             >
               {{ cell.day }}
@@ -107,23 +106,6 @@
       </section>
     </div>
 
-    <!-- MODAL: Kopfschmerzen -->
-    <div v-if="isHeadacheModalOpen" class="modal-backdrop" @click.self="closeHeadacheModal">
-      <div class="modal" role="dialog" aria-modal="true">
-        <p class="modal-text">
-          Did you have a headache on <strong>{{ selectedPrettyDate }}</strong
-          >?
-        </p>
-
-        <div class="modal-actions">
-          <button class="modal-btn is-yes" type="button" @click="saveHeadache(true)">Yes</button>
-          <button class="modal-btn is-no" type="button" @click="saveHeadache(false)">No</button>
-        </div>
-
-        <button class="modal-cancel" type="button" @click="closeHeadacheModal">Cancel</button>
-      </div>
-    </div>
-
     <!-- BOTTOM NAVIGATION -->
     <nav class="bottom-nav">
       <button class="nav-btn is-active" @click="goHome">
@@ -146,9 +128,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { didDailySurveyToday } from '@/state/dailyState'
+
+const DAILY_SURVEY_STORAGE_KEY = 'dailySurveyResult'
 
 const router = useRouter()
 
@@ -189,44 +173,151 @@ function makeDateStr(year, monthIndex, day) {
   return `${year}-${pad2(monthIndex + 1)}-${pad2(day)}`
 }
 
-function isPastOrToday(dateStr) {
-  return dateStr <= todayStr.value
+function isBeforeToday(dateStr) {
+  return dateStr < todayStr.value
 }
 
-/* ---------- init + migration + DEV reset ---------- */
+function isToday(dateStr) {
+  return dateStr === todayStr.value
+}
+
+/* ---------- localStorage parsing (robust) ---------- */
+function normalizeHeadacheToStatus(v) {
+  if (typeof v === 'boolean') return v ? 'red' : 'green'
+  if (typeof v === 'number') return v === 1 ? 'red' : v === 0 ? 'green' : null
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase()
+    if (['true', 'yes', 'y', 'ja', '1', 'red'].includes(s)) return 'red'
+    if (['false', 'no', 'n', 'nein', '0', 'green'].includes(s)) return 'green'
+  }
+  return null
+}
+
+function extractStatusFromParsed(parsed) {
+  if (!parsed || typeof parsed !== 'object') return null
+  return (
+    normalizeHeadacheToStatus(parsed.headache) ??
+    normalizeHeadacheToStatus(parsed.hasHeadache) ??
+    normalizeHeadacheToStatus(parsed.headacheAnswer) ??
+    normalizeHeadacheToStatus(parsed.answer) ??
+    normalizeHeadacheToStatus(parsed.value) ??
+    null
+  )
+}
+
+function dateMatchesToday(dateValue) {
+  const stored = String(dateValue || '').slice(0, 10)
+  if (!stored) return false
+
+  const localToday = todayStr.value
+  const utcToday = new Date().toISOString().slice(0, 10)
+
+  return stored === localToday || stored === utcToday
+}
+
+function readTodaySurveyStatusFromLocalStorage() {
+  // 1) expected key
+  try {
+    const raw = localStorage.getItem(DAILY_SURVEY_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (dateMatchesToday(parsed?.date)) {
+        const status = extractStatusFromParsed(parsed)
+        if (status) return status
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // 2) scan all keys (fallback)
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (!key) continue
+    let raw = null
+    try {
+      raw = localStorage.getItem(key)
+      if (!raw) continue
+      const parsed = JSON.parse(raw)
+
+      if (!dateMatchesToday(parsed?.date)) continue
+
+      const status = extractStatusFromParsed(parsed)
+      if (status) return status
+    } catch {
+      continue
+    }
+  }
+
+  return null
+}
+
+const todayLocalStatus = ref(null)
+
+function refreshTodayLocalStatus() {
+  todayLocalStatus.value = readTodaySurveyStatusFromLocalStorage()
+}
+
+/* ---------- init + migration ---------- */
 onMounted(async () => {
+  setCalendarToTodayClamped()
+  refreshTodayLocalStatus()
+
   const res = await fetch('/headacheEntries.json')
   const data = await res.json()
 
   entries.value = (data || []).map((e) => {
     const headacheIsBool = typeof e?.headache === 'boolean'
-
     return {
       ...e,
-      // Wenn headache true/false ist, dann gilt der Tag als beantwortet
-      headacheAnswered: typeof e?.headacheAnswered === 'boolean'
-        ? e.headacheAnswered
-        : headacheIsBool,
+      headacheAnswered:
+        typeof e?.headacheAnswered === 'boolean' ? e.headacheAnswered : headacheIsBool,
     }
   })
 
   recomputeStreakState()
 })
 
-
 function recomputeStreakState() {
-  const today = todayStr.value
+  refreshTodayLocalStatus()
 
-  // beantwortete Tage NUR bis gestern (date < today)
-  const answeredBeforeToday = (entries.value || [])
-    .filter(e => e && e.headacheAnswered === true && e.date < today)
+  const today = todayStr.value
+  const answeredBeforeToday = (entries.value || []).filter(
+    (e) => e && e.headacheAnswered === true && e.date < today,
+  )
 
   const baseStreak = calculateStreak(answeredBeforeToday)
 
-  // “Heute gemacht?” kommt NICHT aus JSON, sondern nur aus Memory
-  hasTodayEntry.value = didDailySurveyToday.value
-  streak.value = baseStreak + (hasTodayEntry.value ? 1 : 0)
+  // today is “done” if either memory flag OR localStorage status exists
+  const doneToday = didDailySurveyToday.value || todayLocalStatus.value !== null
+  hasTodayEntry.value = doneToday
+  streak.value = baseStreak + (doneToday ? 1 : 0)
 }
+
+watch(
+  () => didDailySurveyToday.value,
+  () => {
+    recomputeStreakState()
+  },
+)
+
+/* SPA navigation back to home */
+const removeAfterEach = router.afterEach((to) => {
+  if (to?.path === '/home') recomputeStreakState()
+})
+
+function onFocus() {
+  recomputeStreakState()
+}
+
+onMounted(() => {
+  window.addEventListener('focus', onFocus)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('focus', onFocus)
+  removeAfterEach()
+})
 
 /* ---------- streak ---------- */
 function calculateStreak(entriesList) {
@@ -254,8 +345,6 @@ function calculateStreak(entriesList) {
   return s
 }
 
-
-
 /* ---------- calendar bounds ---------- */
 /* Grenzen: Sep 2025 bis Sep 2026 */
 const minDate = { month: 8, year: 2025 } // September 2025 (0-indexed)
@@ -263,6 +352,23 @@ const maxDate = { month: 8, year: 2026 } // September 2026
 
 const currentMonth = ref(minDate.month)
 const currentYear = ref(minDate.year)
+
+function monthKey({ year, month }) {
+  return year * 12 + month
+}
+
+function setCalendarToTodayClamped() {
+  const now = new Date()
+  const desired = { year: now.getFullYear(), month: now.getMonth() }
+
+  const minK = monthKey(minDate)
+  const maxK = monthKey(maxDate)
+  const desK = monthKey(desired)
+
+  const clampedK = Math.min(Math.max(desK, minK), maxK)
+  currentYear.value = Math.floor(clampedK / 12)
+  currentMonth.value = clampedK % 12
+}
 
 const monthNames = [
   'January',
@@ -326,10 +432,19 @@ const entriesByDate = computed(() => {
 })
 
 function getDayStatus(dateStr) {
-  const e = entriesByDate.value.get(dateStr)
-  if (!e || e.headacheAnswered !== true) return null
-  if (e.headache === true) return 'red'
-  if (e.headache === false) return 'green'
+  if (isBeforeToday(dateStr)) {
+    const e = entriesByDate.value.get(dateStr)
+    if (!e || e.headacheAnswered !== true) return null
+    if (e.headache === true) return 'red'
+    if (e.headache === false) return 'green'
+    return null
+  }
+
+  if (isToday(dateStr)) {
+    refreshTodayLocalStatus()
+    return todayLocalStatus.value
+  }
+
   return null
 }
 
@@ -341,7 +456,6 @@ const calendarCells = computed(() => {
   const firstWeekday = getMondayBasedFirstWeekday(year, month)
 
   const cells = []
-
   for (let i = 0; i < firstWeekday; i++) cells.push(null)
 
   for (let d = 1; d <= days; d++) {
@@ -349,7 +463,6 @@ const calendarCells = computed(() => {
     cells.push({
       day: d,
       dateStr,
-      clickable: isPastOrToday(dateStr),
       status: getDayStatus(dateStr),
     })
   }
@@ -360,53 +473,10 @@ const calendarCells = computed(() => {
 
 function dayButtonClass(cell) {
   return {
-    'is-clickable': cell.clickable,
     'has-status': cell.status === 'red' || cell.status === 'green',
     'is-headache': cell.status === 'red',
     'is-noheadache': cell.status === 'green',
   }
-}
-
-/* ---------- modal ---------- */
-const isHeadacheModalOpen = ref(false)
-const selectedDateStr = ref('')
-
-const selectedPrettyDate = computed(() => {
-  if (!selectedDateStr.value) return ''
-  const [yyyy, mm, dd] = selectedDateStr.value.split('-')
-  return `${dd}.${mm}.${yyyy}`
-})
-
-function openHeadacheModal(dateStr) {
-  if (!isPastOrToday(dateStr)) return
-  selectedDateStr.value = dateStr
-  isHeadacheModalOpen.value = true
-}
-
-function closeHeadacheModal() {
-  isHeadacheModalOpen.value = false
-  selectedDateStr.value = ''
-}
-
-function saveHeadache(hasHeadache) {
-  // optional: nur im RAM markieren, wenn du es im Kalender einfärben willst,
-  // aber ohne persist ist es nach reload weg
-  const dateStr = selectedDateStr.value
-  if (!dateStr) return
-
-  const next = [...(entries.value || [])]
-  const idx = next.findIndex((e) => e?.date === dateStr)
-
-  if (idx >= 0) {
-    next[idx] = { ...next[idx], headache: hasHeadache, headacheAnswered: true }
-  } else {
-    next.push({ date: dateStr, headache: hasHeadache, headacheAnswered: true })
-  }
-
-  next.sort((a, b) => new Date(a.date) - new Date(b.date))
-  entries.value = next
-  recomputeStreakState()
-  closeHeadacheModal()
 }
 
 /* ---------- Normal section ---------- */
@@ -588,13 +658,10 @@ const safeCaffeineCups = computed(() => {
   height: 40px;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.08);
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   font-size: 1.6rem;
-
   border: none;
   cursor: pointer;
   transition:
@@ -718,18 +785,9 @@ const safeCaffeineCups = computed(() => {
   user-select: none;
 }
 
-.calendar-day-btn.is-clickable {
-  cursor: pointer;
-  opacity: 1;
-}
-
 .calendar-day-btn:disabled {
   cursor: default;
-  opacity: 0.25;
-}
-
-.calendar-day-btn.is-clickable:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.08);
+  opacity: 0.65;
 }
 
 .calendar-day-btn.has-status {
@@ -790,96 +848,6 @@ const safeCaffeineCups = computed(() => {
 .normal-row span:last-child {
   font-weight: 600;
   color: #f2d3c9;
-}
-
-/* ========= MODAL (wizard purple background + red/green buttons) ========= */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(2px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  z-index: 50;
-}
-
-.modal {
-  width: 100%;
-  max-width: 360px;
-  background: rgba(35, 32, 48, 0.94);
-  color: #f7f2f5;
-  border-radius: 18px;
-  padding: 18px 16px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
-}
-
-.modal-text {
-  margin: 0 0 14px;
-  opacity: 0.9;
-  line-height: 1.35;
-}
-
-.modal-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.modal-btn {
-  border: none;
-  border-radius: 12px;
-  padding: 10px 12px;
-  font-weight: 800;
-  cursor: pointer;
-  transition:
-    transform 0.12s ease,
-    filter 0.12s ease,
-    background 0.12s ease;
-}
-
-.modal-btn:hover {
-  filter: brightness(1.05);
-}
-
-.modal-btn:active {
-  transform: translateY(1px);
-}
-
-.modal-btn.is-yes {
-  background: #f08a86;
-  color: rgba(0, 0, 0, 0.75);
-}
-
-.modal-btn.is-no {
-  background: #b8e39a;
-  color: rgba(0, 0, 0, 0.75);
-}
-
-.modal-cancel {
-  width: 100%;
-  border: 1px solid rgba(111, 88, 168, 0.75);
-  background: rgba(111, 88, 168, 0.18);
-  color: #f7f2f5;
-  border-radius: 12px;
-  padding: 10px 12px;
-  cursor: pointer;
-  font-weight: 800;
-  transition:
-    transform 0.12s ease,
-    filter 0.12s ease,
-    background 0.12s ease;
-}
-
-.modal-cancel:hover {
-  filter: brightness(1.06);
-}
-
-.modal-cancel:active {
-  transform: translateY(1px);
 }
 
 /* ========= BOTTOM NAVIGATION ========= */
