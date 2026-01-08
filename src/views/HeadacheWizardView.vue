@@ -1,4 +1,4 @@
-<!-- Wizard -->
+<!-- src/views/HeadacheWizardView.vue -->
 <template>
   <div class="wizard">
     <!-- Status bar -->
@@ -85,11 +85,7 @@
               <label>Rate your sleep:</label>
               <input v-model.number="answers.sleepQuality" type="range" min="1" max="5" />
               <div class="range-labels">
-                <span>1</span>
-                <span>2</span>
-                <span>3</span>
-                <span>4</span>
-                <span>5</span>
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
               </div>
             </div>
           </div>
@@ -151,11 +147,7 @@
             <div class="field field-slider">
               <input v-model.number="answers.stressLevel" type="range" min="1" max="5" />
               <div class="range-labels">
-                <span>1</span>
-                <span>2</span>
-                <span>3</span>
-                <span>4</span>
-                <span>5</span>
+                <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
               </div>
             </div>
           </div>
@@ -171,24 +163,26 @@
       </button>
     </footer>
 
+    <!-- Tip modal -->
     <Transition name="modal-fade">
       <div v-if="showTip" class="modal-backdrop" @click.self="closeTip">
         <div class="modal">
           <h3>{{ currentTip.title }}</h3>
           <p>{{ currentTip.body }}</p>
-          <button class="close-btn" @click="closeTip">OK</button>
+          <button class="close-btn" type="button" @click="closeTip">OK</button>
         </div>
       </div>
     </Transition>
 
+    <!-- Stop confirm modal -->
     <Transition name="modal-fade">
       <div v-if="showStopConfirm" class="modal-backdrop" @click.self="closeStopConfirm">
         <div class="modal">
           <h3>Stop the check?</h3>
           <p>you sure you want to stop ?</p>
           <div class="modal-actions">
-            <button class="secondary-btn" @click="closeStopConfirm">Cancel</button>
-            <button class="close-btn" @click="confirmStop">Stop</button>
+            <button class="secondary-btn" type="button" @click="closeStopConfirm">Cancel</button>
+            <button class="close-btn" type="button" @click="confirmStop">Stop</button>
           </div>
         </div>
       </div>
@@ -227,6 +221,44 @@ const currentStep = computed(() => steps[stepIndex.value])
 const isLastStep = computed(() => stepNumber.value === totalSteps)
 const progressWidth = computed(() => `${(stepNumber.value / totalSteps) * 100}%`)
 
+const tips = {
+  headache: {
+    title: 'Quick note',
+    body: 'Logging headaches daily helps spot patterns faster.',
+  },
+  sleep: {
+    title: "Don't forget",
+    body: 'Your body needs at least 8 hours of sleep to fully recharge. 🛏️',
+  },
+  water: {
+    title: 'Remember to stay hydrated!',
+    body: 'Many people need around 2–3 liters (8–12 cups) of water per day. 💧',
+  },
+  caffeine: {
+    title: 'Coffee guide',
+    body: 'Many people stay under 3–4 cups of coffee a day. ☕️',
+  },
+  work: {
+    title: 'Productivity',
+    body: 'Take short breaks from work or study from time to time. 🧑‍💻',
+  },
+  screen: {
+    title: 'Screen time',
+    body: 'Long screen sessions can trigger headaches. 🖥️',
+  },
+  stress: {
+    title: 'Your stress level',
+    body: 'Your body needs a break from stress sometimes. 🧠',
+  },
+}
+
+const currentTip = computed(
+  () => tips[currentStep.value] ?? { title: 'Tip', body: 'Keep your entries consistent each day.' },
+)
+
+const showTip = ref(false)
+const showStopConfirm = ref(false)
+
 const hasValue = (v) => v !== null && v !== undefined && v !== ''
 
 const canProceed = computed(() => {
@@ -252,6 +284,35 @@ const canProceed = computed(() => {
   }
 })
 
+function openTip() {
+  showTip.value = true
+}
+
+function closeTip() {
+  showTip.value = false
+}
+
+function openStopConfirm() {
+  showStopConfirm.value = true
+}
+
+function closeStopConfirm() {
+  showStopConfirm.value = false
+}
+
+async function confirmStop() {
+  showStopConfirm.value = false
+  try {
+    await router.push({ name: 'home' })
+  } catch {
+    try {
+      await router.push('/')
+    } catch {
+      router.back()
+    }
+  }
+}
+
 function toLocalIsoDate(date) {
   return date.toLocaleDateString('en-CA') // YYYY-MM-DD
 }
@@ -265,7 +326,7 @@ function persistTodaySurveyToLocalStorage() {
   const payload = {
     date: today,
     headacheAnswered: true,
-    headache: headacheYesNo === 'yes', // <- Home kann boolean korrekt zu red/green mappen
+    headache: headacheYesNo === 'yes',
     headacheDuration: Number(answers.value.headacheDuration || 0),
     sleepHours: Number(answers.value.sleepHours || 0),
     sleepQuality: Number(answers.value.sleepQuality || 0),
@@ -280,9 +341,7 @@ function persistTodaySurveyToLocalStorage() {
 
   try {
     localStorage.setItem(DAILY_SURVEY_STORAGE_KEY, JSON.stringify(payload))
-  } catch {
-    // if storage is blocked/full, Home won't be able to mark today
-  }
+  } catch {}
 }
 
 function calculateStreak(entries) {
@@ -331,10 +390,7 @@ async function calculateFinalStreakFromJson() {
 
 async function goNext() {
   if (isLastStep.value) {
-    // 1) persist for Home calendar "today"
     persistTodaySurveyToLocalStorage()
-
-    // 2) in-memory flag (streak badge etc.)
     didDailySurveyToday.value = true
 
     const finalStreak = await calculateFinalStreakFromJson()
@@ -630,7 +686,6 @@ async function goNext() {
   font-weight: 700;
 }
 
-/* Step blur/fade, same feel wie Start→Home */
 .step-blur-enter-active {
   transition:
     opacity 0.45s ease,
@@ -654,7 +709,6 @@ async function goNext() {
   transform: translateY(-6px) scale(0.99);
 }
 
-/* Modal */
 .modal-backdrop {
   position: fixed;
   inset: 0;
