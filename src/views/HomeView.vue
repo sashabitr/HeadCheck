@@ -129,12 +129,18 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
+import { useEventListener } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
-import { didDailySurveyToday } from '@/state/dailyState'
+import { useDailyStore } from '@/state/dailyState'
+import { useLocalDate } from '@/composables/useLocalDate'
 
 const DAILY_SURVEY_STORAGE_KEY = 'dailySurveyResult'
 
 const router = useRouter()
+const dailyStore = useDailyStore()
+const { didDailySurveyToday } = storeToRefs(dailyStore)
+const { toLocalIsoDate } = useLocalDate()
 
 const entries = ref([])
 const streak = ref(0)
@@ -161,10 +167,6 @@ function goReport() {
 /* ---------- date helpers (lokal, ohne UTC shift) ---------- */
 function pad2(n) {
   return String(n).padStart(2, '0')
-}
-
-function toLocalIsoDate(date) {
-  return date.toLocaleDateString('en-CA') // YYYY-MM-DD
 }
 
 const todayStr = computed(() => toLocalIsoDate(new Date()))
@@ -310,12 +312,9 @@ function onFocus() {
   recomputeStreakState()
 }
 
-onMounted(() => {
-  window.addEventListener('focus', onFocus)
-})
+useEventListener(window, 'focus', onFocus)
 
 onBeforeUnmount(() => {
-  window.removeEventListener('focus', onFocus)
   removeAfterEach()
 })
 

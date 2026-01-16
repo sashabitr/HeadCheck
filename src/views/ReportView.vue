@@ -210,11 +210,16 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
-import { didDailySurveyToday } from '@/state/dailyState'
+import { useDailyStore } from '@/state/dailyState'
+import { useLocalDate } from '@/composables/useLocalDate'
 
 const range = ref('week')
 const router = useRouter()
+const dailyStore = useDailyStore()
+const { didDailySurveyToday } = storeToRefs(dailyStore)
+const { toLocalIsoDate, addDays } = useLocalDate()
 const entries = ref([])
 
 const todayStr = computed(() => toLocalIsoDate(new Date()))
@@ -243,18 +248,6 @@ const filteredEntries = computed(() => {
     e.headacheAnswered === true
   )
 })
-
-
-function toLocalIsoDate(date) {
-  return date.toLocaleDateString('en-CA')
-}
-
-function addDays(isoDateStr, delta) {
-  const d = new Date(isoDateStr + 'T00:00:00')
-  d.setDate(d.getDate() + delta)
-  return toLocalIsoDate(d)
-}
-
 
 
 const headacheDays = computed(() =>

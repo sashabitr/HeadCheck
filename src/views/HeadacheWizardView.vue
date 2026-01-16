@@ -11,9 +11,16 @@
     <!-- Title + Progress -->
     <section class="header">
       <div class="title-row">
-        <button class="close-wizard-btn" type="button" @click.stop="openStopConfirm">close</button>
+        <button
+          ref="closeWizardButtonRef"
+          class="close-wizard-btn"
+          type="button"
+          @click.stop="openStopConfirm"
+        >
+          close
+        </button>
         <span class="title">Headache Check</span>
-        <button class="tip-btn" aria-label="Info" @click.stop="openTip">
+        <button ref="tipButtonRef" class="tip-btn" aria-label="Info" @click.stop="openTip">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path
               d="M9.5 19h5v-1.2c0-1.1.5-1.8 1.2-2.7.8-1 1.8-2.4 1.8-4.6A6.5 6.5 0 0 0 12 4 6.5 6.5 0 0 0 6.5 10.5c0 2.2 1 3.6 1.8 4.6.7.9 1.2 1.6 1.2 2.7z"
@@ -38,6 +45,8 @@
               stroke-linecap="round"
             />
           </svg>
+          <span v-if="showTip" class="sr-only">Tip open</span>
+          <span v-else class="sr-only">Tip closed</span>
         </button>
       </div>
       <div class="progress-row">
@@ -54,16 +63,7 @@
         <div :key="currentStep" class="step">
           <div v-if="currentStep === 'headache'">
             <h2>Did you have a headache today?</h2>
-            <div class="choice-group">
-              <label class="choice" :class="{ 'is-selected': answers.headache === 'yes' }">
-                <input v-model="answers.headache" type="radio" value="yes" />
-                <span>yes</span>
-              </label>
-              <label class="choice" :class="{ 'is-selected': answers.headache === 'no' }">
-                <input v-model="answers.headache" type="radio" value="no" />
-                <span>no</span>
-              </label>
-            </div>
+            <YesNoChoice v-model="answers.headache" />
 
             <div class="field">
               <label>How long?</label>
@@ -106,16 +106,7 @@
 
           <div v-else-if="currentStep === 'caffeine'">
             <h2>Did you consume caffeine today?</h2>
-            <div class="choice-group">
-              <label class="choice" :class="{ 'is-selected': answers.caffeine === 'yes' }">
-                <input v-model="answers.caffeine" type="radio" value="yes" />
-                <span>yes</span>
-              </label>
-              <label class="choice" :class="{ 'is-selected': answers.caffeine === 'no' }">
-                <input v-model="answers.caffeine" type="radio" value="no" />
-                <span>no</span>
-              </label>
-            </div>
+            <YesNoChoice v-model="answers.caffeine" />
 
             <div class="field">
               <label>How many cups?</label>
@@ -157,53 +148,61 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <button class="next-btn" :disabled="!canProceed" @click="goNext">
-        <span>{{ isLastStep ? 'finish' : 'next' }}</span>
+      <Button class="next-btn" :disabled="!canProceed" type="button" @click="goNext">
+        <span v-if="isLastStep">finish</span>
+        <span v-else>next</span>
         <span class="arrow">→</span>
-      </button>
+      </Button>
     </footer>
 
     <!-- Tip modal -->
-    <Transition name="modal-fade">
-      <div v-if="showTip" class="modal-backdrop" @click.self="closeTip">
-        <div class="modal">
-          <h3>{{ currentTip.title }}</h3>
-          <p>{{ currentTip.body }}</p>
-          <button class="close-btn" type="button" @click="closeTip">OK</button>
-        </div>
-      </div>
-    </Transition>
+    <AppModal :open="showTip" :title="currentTip.title" @close="closeTip">
+      <p>{{ currentTip.body }}</p>
+      <button class="close-btn" type="button" @click="closeTip">OK</button>
+    </AppModal>
 
     <!-- Stop confirm modal -->
-    <Transition name="modal-fade">
-      <div v-if="showStopConfirm" class="modal-backdrop" @click.self="closeStopConfirm">
-        <div class="modal">
-          <h3>Stop the check?</h3>
-          <p>you sure you want to stop ?</p>
-          <div class="modal-actions">
-            <button class="secondary-btn" type="button" @click="closeStopConfirm">Cancel</button>
-            <button class="close-btn" type="button" @click="confirmStop">Stop</button>
-          </div>
-        </div>
-      </div>
-    </Transition>
+    <AppModal :open="showStopConfirm" title="Stop the check?" @close="closeStopConfirm">
+      <p>you sure you want to stop ?</p>
+      <template #actions>
+        <button class="secondary-btn" type="button" @click="closeStopConfirm">Cancel</button>
+        <button class="close-btn" type="button" @click="confirmStop">Stop</button>
+      </template>
+    </AppModal>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, reactive, ref, toRefs } from 'vue'
+import { useFocus } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
-import { didDailySurveyToday } from '@/state/dailyState'
+import AppModal from '@/components/AppModal.vue'
+import Button from 'primevue/button'
+import YesNoChoice from '@/components/YesNoChoice.vue'
+import { useLocalDate } from '@/composables/useLocalDate'
+import { toTypedSchema } from '@vee-validate/zod'
+import { useForm } from 'vee-validate'
+import { z } from 'zod'
+import { useDailyStore } from '@/state/dailyState'
 
 const DAILY_SURVEY_STORAGE_KEY = 'dailySurveyResult'
 
 const router = useRouter()
+const dailyStore = useDailyStore()
+const { didDailySurveyToday } = storeToRefs(dailyStore)
+const { toLocalIsoDate } = useLocalDate()
+
+const closeWizardButtonRef = ref(null)
+const tipButtonRef = ref(null)
+const { focused: closeWizardFocused } = useFocus(closeWizardButtonRef)
+const { focused: tipButtonFocused } = useFocus(tipButtonRef)
 
 const steps = ['headache', 'sleep', 'water', 'caffeine', 'work', 'screen', 'stress']
 const stepIndex = ref(0)
 const totalSteps = steps.length
 
-const answers = ref({
+const answers = reactive({
   headache: '',
   headacheDuration: '',
   sleepHours: '',
@@ -214,6 +213,26 @@ const answers = ref({
   workHours: '',
   screenHours: '',
   stressLevel: 3,
+})
+
+const formSchema = toTypedSchema(
+  z.object({
+    headache: z.string().optional(),
+    headacheDuration: z.union([z.string(), z.number()]).optional(),
+    sleepHours: z.union([z.string(), z.number()]).optional(),
+    sleepQuality: z.number().optional(),
+    waterLiters: z.union([z.string(), z.number()]).optional(),
+    caffeine: z.string().optional(),
+    caffeineCups: z.union([z.string(), z.number()]).optional(),
+    workHours: z.union([z.string(), z.number()]).optional(),
+    screenHours: z.union([z.string(), z.number()]).optional(),
+    stressLevel: z.number().optional(),
+  }),
+)
+
+const { setValues, validate } = useForm({
+  validationSchema: formSchema,
+  initialValues: { ...answers },
 })
 
 const stepNumber = computed(() => stepIndex.value + 1)
@@ -256,13 +275,17 @@ const currentTip = computed(
   () => tips[currentStep.value] ?? { title: 'Tip', body: 'Keep your entries consistent each day.' },
 )
 
-const showTip = ref(false)
-const showStopConfirm = ref(false)
+const uiState = reactive({
+  showTip: false,
+  showStopConfirm: false,
+})
+
+const { showTip, showStopConfirm } = toRefs(uiState)
 
 const hasValue = (v) => v !== null && v !== undefined && v !== ''
 
 const canProceed = computed(() => {
-  const v = answers.value
+  const v = answers
   switch (currentStep.value) {
     case 'headache':
       return hasValue(v.headache) && (v.headache === 'no' || hasValue(v.headacheDuration))
@@ -290,6 +313,9 @@ function openTip() {
 
 function closeTip() {
   showTip.value = false
+  nextTick(() => {
+    tipButtonFocused.value = true
+  })
 }
 
 function openStopConfirm() {
@@ -298,6 +324,9 @@ function openStopConfirm() {
 
 function closeStopConfirm() {
   showStopConfirm.value = false
+  nextTick(() => {
+    closeWizardFocused.value = true
+  })
 }
 
 async function confirmStop() {
@@ -313,29 +342,25 @@ async function confirmStop() {
   }
 }
 
-function toLocalIsoDate(date) {
-  return date.toLocaleDateString('en-CA') // YYYY-MM-DD
-}
-
 function persistTodaySurveyToLocalStorage() {
   const today = toLocalIsoDate(new Date())
 
-  const headacheYesNo = answers.value.headache
+  const headacheYesNo = answers.headache
   if (headacheYesNo !== 'yes' && headacheYesNo !== 'no') return
 
   const payload = {
     date: today,
     headacheAnswered: true,
     headache: headacheYesNo === 'yes',
-    headacheDuration: Number(answers.value.headacheDuration || 0),
-    sleepHours: Number(answers.value.sleepHours || 0),
-    sleepQuality: Number(answers.value.sleepQuality || 0),
-    waterLiters: Number(answers.value.waterLiters || 0),
-    caffeine: answers.value.caffeine === 'yes',
-    caffeineCups: Number(answers.value.caffeineCups || 0),
-    workHours: Number(answers.value.workHours || 0),
-    screenHours: Number(answers.value.screenHours || 0),
-    stressLevel: Number(answers.value.stressLevel || 0),
+    headacheDuration: Number(answers.headacheDuration || 0),
+    sleepHours: Number(answers.sleepHours || 0),
+    sleepQuality: Number(answers.sleepQuality || 0),
+    waterLiters: Number(answers.waterLiters || 0),
+    caffeine: answers.caffeine === 'yes',
+    caffeineCups: Number(answers.caffeineCups || 0),
+    workHours: Number(answers.workHours || 0),
+    screenHours: Number(answers.screenHours || 0),
+    stressLevel: Number(answers.stressLevel || 0),
     updatedAt: new Date().toISOString(),
   }
 
@@ -389,6 +414,9 @@ async function calculateFinalStreakFromJson() {
 }
 
 async function goNext() {
+  setValues({ ...answers }, false)
+  await validate()
+
   if (isLastStep.value) {
     persistTodaySurveyToLocalStorage()
     didDailySurveyToday.value = true
@@ -398,8 +426,8 @@ async function goNext() {
     return
   }
 
-  if (currentStep.value === 'work' && !hasValue(answers.value.workHours)) {
-    answers.value.workHours = 0
+  if (currentStep.value === 'work' && !hasValue(answers.workHours)) {
+    answers.workHours = 0
   }
   stepIndex.value++
 }
@@ -506,6 +534,17 @@ async function goNext() {
   height: 22px;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
 .progress-row {
   display: flex;
   align-items: center;
@@ -549,50 +588,6 @@ async function goNext() {
   font-size: 1rem;
   margin: 0 0 12px;
   font-weight: 600;
-}
-
-.choice-group {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.choice {
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 10px;
-  padding: 12px 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.choice input {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  border: 2px solid rgba(255, 255, 255, 0.6);
-  background: transparent;
-  position: relative;
-}
-
-.choice input:checked {
-  background: #b18385;
-  border-color: #b18385;
-}
-
-.choice.is-selected {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: #b18385;
-}
-
-.choice span {
-  text-transform: lowercase;
-  letter-spacing: 0.05em;
 }
 
 .field {
@@ -707,105 +702,5 @@ async function goNext() {
   opacity: 0;
   filter: blur(10px);
   transform: translateY(-6px) scale(0.99);
-}
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  box-sizing: border-box;
-}
-
-.modal {
-  background: #4b455a;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
-  padding: 20px 20px 18px;
-  color: #f1e9f0;
-  width: min(320px, 88vw);
-  max-height: 70vh;
-  overflow: auto;
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35);
-  text-align: center;
-}
-
-.modal h3 {
-  margin: 0 0 10px;
-  font-size: 1.08rem;
-  color: #ffffff;
-  font-weight: 800;
-}
-
-.modal p {
-  margin: 0 0 16px;
-  line-height: 1.5;
-  opacity: 0.95;
-  color: #fdf9ff;
-}
-
-.modal-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.secondary-btn {
-  width: 100%;
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #f1e9f0;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition:
-    transform 0.1s ease,
-    background 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.secondary-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.5);
-}
-
-.secondary-btn:active {
-  transform: translateY(1px);
-}
-
-.close-btn {
-  width: 100%;
-  background: #7d5c9f;
-  border: none;
-  color: #fff;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  transition:
-    transform 0.1s ease,
-    background 0.2s ease;
-}
-
-.close-btn:active {
-  transform: translateY(1px);
-}
-
-.modal-fade-enter-active,
-.modal-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.modal-fade-enter-from,
-.modal-fade-leave-to {
-  opacity: 0;
 }
 </style>
