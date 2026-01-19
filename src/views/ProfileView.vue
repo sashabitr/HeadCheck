@@ -24,19 +24,58 @@
 
       <!-- Einstellungs-Optionen -->
       <section class="profile-options">
-        <div class="option-row">
-          <img src="/rsc/profile1.png" alt="My Profile" class="option-icon" />
-          <span class="option-text">My Profile</span>
+        <div class="section-block">
+          <div class="section-title">Account</div>
+          <button class="option-row" type="button">
+            <img src="/rsc/profile1.png" alt="" class="option-icon" />
+            <span class="option-text">My Profile</span>
+            <span class="option-chevron">&gt;</span>
+          </button>
+          <button class="option-row" type="button">
+            <img src="/rsc/globe.png" alt="" class="option-icon" />
+            <span class="option-text">Change Email</span>
+            <span class="option-chevron">&gt;</span>
+          </button>
+          <button class="option-row" type="button">
+            <img src="/rsc/lock.png" alt="" class="option-icon" />
+            <span class="option-text">Change Password</span>
+            <span class="option-chevron">&gt;</span>
+          </button>
+          <button class="option-row" type="button">
+            <img src="/rsc/lock.png" alt="" class="option-icon" />
+            <span class="option-text">Privacy Settings</span>
+            <span class="option-chevron">&gt;</span>
+          </button>
         </div>
 
-        <div class="option-row">
-          <img src="/rsc/lock.png" alt="Change Password" class="option-icon" />
-          <span class="option-text">Change Password</span>
+        <div class="section-block">
+          <div class="section-title">Support</div>
+          <button class="option-row" type="button">
+            <img src="/rsc/lamp.png" alt="" class="option-icon" />
+            <span class="option-text">Help &amp; FAQ</span>
+            <span class="option-chevron">&gt;</span>
+          </button>
+          <button class="option-row" type="button">
+            <img src="/rsc/report1.png" alt="" class="option-icon" />
+            <span class="option-text">Report a Problem</span>
+            <span class="option-chevron">&gt;</span>
+          </button>
+          <button class="option-row" type="button">
+            <img src="/rsc/tap.png" alt="" class="option-icon" />
+            <span class="option-text">Feedback</span>
+            <span class="option-chevron">&gt;</span>
+          </button>
         </div>
 
-        <div class="option-row">
-          <img src="/rsc/globe.png" alt="Change Language" class="option-icon" />
-          <span class="option-text">Change Language</span>
+        <div class="section-block actions-block">
+          <button class="option-row" type="button">
+            <img src="/rsc/close.png" alt="" class="option-icon" />
+            <span class="option-text">Log out</span>
+          </button>
+          <button class="option-row danger" type="button">
+            <img src="/rsc/report2.png" alt="" class="option-icon" />
+            <span class="option-text">Delete Account</span>
+          </button>
         </div>
       </section>
     </div>
@@ -101,6 +140,8 @@ function goReport() {
   flex: 1;
   padding: 24px 20px 16px;
   box-sizing: border-box;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 /* Statusbar (gleich wie auf Home) */
@@ -167,26 +208,82 @@ function goReport() {
 
 /* Optionen-Liste */
 .profile-options {
-  margin-top: 32px;
+  margin-top: 28px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 26px;
+}
+
+.section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-title {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.14em;
+  color: rgba(255, 255, 255, 0.55);
+  padding-left: 6px;
 }
 
 .option-row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  appearance: none;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.1s ease;
+}
+
+.option-row:active {
+  transform: translateY(1px);
+}
+
+.option-row:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .option-icon {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
 }
 
 .option-text {
   font-size: 0.95rem;
+  flex: 1;
+}
+
+.option-chevron {
+  opacity: 0.55;
+  font-size: 0.9rem;
+}
+
+.actions-block {
+  margin-top: 6px;
+  gap: 10px;
+}
+
+.option-row.danger {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffdadf;
 }
 
 /* Bottom Navigation (gleich wie Home) */
@@ -200,6 +297,15 @@ function goReport() {
   min-height: 80px;
   gap: 16px;
   box-sizing: border-box;
+}
+
+.profile-inner::-webkit-scrollbar {
+  width: 6px;
+}
+
+.profile-inner::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
 }
 
 .nav-btn {

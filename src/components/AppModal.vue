@@ -41,6 +41,7 @@ function handleClose() {
   justify-content: center;
   padding: 24px;
   box-sizing: border-box;
+  z-index: 30;
 }
 
 .modal {
