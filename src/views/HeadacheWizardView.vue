@@ -72,7 +72,16 @@
             <div class="field field-spaced">
               <label>How long?</label>
               <div class="input-with-suffix">
-                <input v-model="answers.headacheDuration" type="number" min="0" placeholder="0" />
+                <input
+                  v-model="answers.headacheDuration"
+                  type="number"
+                  min="0"
+                  max="24"
+                  inputmode="numeric"
+                  placeholder="0"
+                  :disabled="answers.headache !== 'yes'"
+                  @input="enforceNonNegativeInput($event, 'headacheDuration', { max: 24 })"
+                />
                 <span>h</span>
               </div>
             </div>
@@ -81,7 +90,16 @@
           <div v-else-if="currentStep === 'sleep'">
             <h2>How many hours did you sleep?</h2>
             <div class="input-with-suffix field-inline">
-              <input v-model="answers.sleepHours" type="number" min="0" placeholder="0" />
+              <input
+                v-model="answers.sleepHours"
+                type="number"
+                min="0"
+                max="24"
+                step="0.1"
+                inputmode="decimal"
+                placeholder="0"
+                @input="enforceNonNegativeInput($event, 'sleepHours', { allowDecimal: true, max: 24 })"
+              />
               <span>h</span>
             </div>
 
@@ -102,7 +120,9 @@
                 type="number"
                 min="0"
                 step="0.1"
+                inputmode="decimal"
                 placeholder="0"
+                @input="enforceNonNegativeInput($event, 'waterLiters', { allowDecimal: true })"
               />
               <span>L</span>
             </div>
@@ -115,7 +135,15 @@
             <div class="field">
               <label>How many cups?</label>
               <div class="input-with-suffix">
-                <input v-model="answers.caffeineCups" type="number" min="0" placeholder="0" />
+                <input
+                  v-model="answers.caffeineCups"
+                  type="number"
+                  min="0"
+                  inputmode="numeric"
+                  placeholder="0"
+                  :disabled="answers.caffeine !== 'yes'"
+                  @input="enforceNonNegativeInput($event, 'caffeineCups')"
+                />
                 <span>cups</span>
               </div>
             </div>
@@ -124,7 +152,16 @@
           <div v-else-if="currentStep === 'work'">
             <h2>How long did you work/study today?</h2>
             <div class="input-with-suffix field-inline">
-              <input v-model="answers.workHours" type="number" min="0" placeholder="0" />
+              <input
+                v-model="answers.workHours"
+                type="number"
+                min="0"
+                max="24"
+                step="0.1"
+                inputmode="decimal"
+                placeholder="0"
+                @input="enforceNonNegativeInput($event, 'workHours', { allowDecimal: true, max: 24 })"
+              />
               <span>h</span>
             </div>
           </div>
@@ -132,7 +169,16 @@
           <div v-else-if="currentStep === 'screen'">
             <h2>How long were you in front of a screen?</h2>
             <div class="input-with-suffix field-inline">
-              <input v-model="answers.screenHours" type="number" min="0" placeholder="0" />
+              <input
+                v-model="answers.screenHours"
+                type="number"
+                min="0"
+                max="24"
+                step="0.1"
+                inputmode="decimal"
+                placeholder="0"
+                @input="enforceNonNegativeInput($event, 'screenHours', { allowDecimal: true, max: 24 })"
+              />
               <span>h</span>
             </div>
           </div>
@@ -177,7 +223,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, reactive, ref, toRefs } from 'vue'
+import { computed, nextTick, reactive, ref, toRefs, watch } from 'vue'
 import { useFocus } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
@@ -290,6 +336,56 @@ const { showTip, showStopConfirm } = toRefs(uiState)
 
 const hasValue = (v) => v !== null && v !== undefined && v !== ''
 
+function enforceNonNegativeInput(event, key, options = {}) {
+  const target = event?.target
+  if (!target) return
+
+  const allowDecimal = options.allowDecimal === true
+  const maxValue = Number.isFinite(options.max) ? options.max : null
+  const raw = String(target.value ?? '')
+
+  if (raw === '') {
+    answers[key] = ''
+    return
+  }
+
+  if (raw.includes('-')) {
+    answers[key] = ''
+    target.value = ''
+    return
+  }
+
+  let cleaned = raw.replace(',', '.')
+  cleaned = cleaned.replace(allowDecimal ? /[^0-9.]/g : /[^0-9]/g, '')
+
+  if (allowDecimal) {
+    const parts = cleaned.split('.')
+    cleaned = parts.shift() + (parts.length ? `.${parts.join('')}` : '')
+    if (cleaned.startsWith('.')) cleaned = `0${cleaned}`
+  }
+
+  if (cleaned === '' || cleaned === '.') {
+    answers[key] = ''
+    target.value = ''
+    return
+  }
+
+  const num = Number(cleaned)
+  if (Number.isNaN(num) || num < 0) {
+    answers[key] = ''
+    target.value = ''
+    return
+  }
+
+  let finalValue = allowDecimal ? num : Math.floor(num)
+  if (maxValue !== null && finalValue > maxValue) finalValue = maxValue
+
+  cleaned = allowDecimal ? String(finalValue) : String(Math.floor(finalValue))
+
+  answers[key] = cleaned
+  if (target.value !== cleaned) target.value = cleaned
+}
+
 const canProceed = computed(() => {
   const v = answers
   switch (currentStep.value) {
@@ -323,6 +419,20 @@ function handleHeroError(event) {
     target.src = heroFallbackSrc
   }
 }
+
+watch(
+  () => answers.headache,
+  (value) => {
+    if (value !== 'yes') answers.headacheDuration = ''
+  },
+)
+
+watch(
+  () => answers.caffeine,
+  (value) => {
+    if (value !== 'yes') answers.caffeineCups = ''
+  },
+)
 
 function closeTip() {
   showTip.value = false
@@ -768,6 +878,15 @@ async function goNext() {
 
 .input-with-suffix input::placeholder {
   color: rgba(245, 240, 249, 0.45);
+}
+
+.input-with-suffix input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.input-with-suffix input:disabled + span {
+  opacity: 0.5;
 }
 
 .input-with-suffix span {
