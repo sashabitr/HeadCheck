@@ -1,212 +1,232 @@
 <template>
-    <div class="report">
-        <div class="report-inner">
-            <header class="status-bar">
-                <span class="time">9:41</span>
-                <span class="status-spacer"></span>
-                <span class="status-icons">📶 🔋</span>
-            </header>
+  <!-- Gesamte Report-Seite -->
+  <div class="report">
+    <div class="report-inner">
 
-            <!-- ===== PAGE HEADER ===== -->
-            <section class="page-header">
-                <h1 class="page-title">Headache report</h1>
+      <!-- ================= STATUSBAR ================= -->
+      <!-- Simulierte Statusleiste (Uhrzeit, Empfang, Akku) -->
+      <header class="status-bar">
+        <span class="time">9:41</span>
+        <span class="status-spacer"></span>
+        <span class="status-icons">📶 🔋</span>
+      </header>
 
-                <div class="segment-control">
-                <button
-                    class="segment-btn"
-                    :class="{ active: range === 'week' }"
-                    @click="range = 'week'"
-                >
-                    week
-                </button>
+      <!-- ================= PAGE HEADER ================= -->
+      <!-- Titel + Zeitraum-Auswahl -->
+      <section class="page-header">
+        <h1 class="page-title">Headache report</h1>
 
-                <button
-                    class="segment-btn"
-                    :class="{ active: range === '2weeks' }"
-                    @click="range = '2weeks'"
-                >
-                    2 weeks
-                </button>
+        <!-- Segment Control: Auswahl des Zeitraums -->
+        <div class="segment-control">
+          <!-- Letzte 7 Tage -->
+          <button
+            class="segment-btn"
+            :class="{ active: range === 'week' }"
+            @click="range = 'week'"
+          >
+            week
+          </button>
 
-                <button
-                    class="segment-btn"
-                    :class="{ active: range === 'month' }"
-                    @click="range = 'month'"
-                >
-                    month
-                </button>
-                </div>
-            </section>
+          <!-- Letzte 14 Tage -->
+          <button
+            class="segment-btn"
+            :class="{ active: range === '2weeks' }"
+            @click="range = '2weeks'"
+          >
+            2 weeks
+          </button>
 
-            <Transition name="fade-slide" mode="out-in">
-                <section v-if="triggerPercentages" class="trigger-section">
-                    <h2>Your Headache Trigger</h2>
-
-                    <div class="donut-row">
-                        <svg
-                            class="donut"
-                            viewBox="0 0 120 120"
-                        >
-                            <!-- Hintergrund -->
-                            <circle
-                            cx="60"
-                            cy="60"
-                            r="45"
-                            fill="none"
-                            stroke="rgba(255,255,255,0.1)"
-                            stroke-width="14"
-                            />
-
-                            <!-- Segmente -->
-                            <circle
-                            v-for="(t, i) in triggerPercentages"
-                            :key="t.key"
-                            cx="60"
-                            cy="60"
-                            r="45"
-                            fill="none"
-                            stroke-width="14"
-                            :stroke="colors[t.key]"
-                            :stroke-dasharray="dashArray(t.percent)"
-                            :stroke-dashoffset="dashOffset(i)"
-                            stroke-linecap="butt"
-                            transform="rotate(-90 60 60)"
-                            />
-                        </svg>
-
-                        <!-- Labels -->
-                        <div class="donut-labels">
-                            <div
-                            v-for="t in triggerPercentages"
-                            :key="t.key"
-                            class="label"
-                            >
-                            <span
-                                class="dot"
-                                :style="{ background: colors[t.key] }"
-                            ></span>
-                            {{ t.label }} — {{ t.percent.toFixed(0) }}%
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </Transition>
-
-            <Transition name="fade-slide" mode="out-in">
-                <section v-if="headacheHoursPerDay.length" class="hours-section">
-                    <h2>Hours of headache per day</h2>
-
-                    <div class="hours-chart-wrapper">
-    
-                        <!-- Y-AXIS -->
-                        <div class="y-axis">
-                            <span>4h</span>
-                            <span>3h</span>
-                            <span>2h</span>
-                            <span>1h</span>
-                            <span>0h</span>
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                        </div>
-
-                        <!-- CHART -->
-                        <div class="hours-chart">
-                            <div
-                            v-for="d in headacheHoursPerDay"
-                            :key="d.date"
-                            class="bar-wrapper"
-                            >
-                            <div
-                                class="bar"
-                                :style="{ height: (d.hours / 4) * 100 + 'px' }"
-                            ></div>
-                            <span class="day">
-                                {{ new Date(d.date).toLocaleDateString('en', { weekday: 'short' }) }}
-                            </span>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </Transition>
-
-            <Transition name="fade-slide" mode="out-in">
-                <section
-                    v-if="weekdayWeekendPercentages"
-                    class="weekday-weekend-section"
-                    >
-                    <h2>Headache on weekdays vs weekends</h2>
-
-                    <div class="donut-row">
-                        <svg class="donut" viewBox="0 0 120 120">
-                        <!-- Hintergrund -->
-                        <circle
-                            cx="60"
-                            cy="60"
-                            r="45"
-                            fill="none"
-                            stroke="rgba(255,255,255,0.1)"
-                            stroke-width="14"
-                        />
-
-                        <!-- Segmente -->
-                        <circle
-                            v-for="(d, i) in weekdayWeekendPercentages"
-                            :key="d.key"
-                            cx="60"
-                            cy="60"
-                            r="45"
-                            fill="none"
-                            stroke-width="14"
-                            :stroke="colors[d.key]"
-                            :stroke-dasharray="dashArray(d.percent)"
-                            :stroke-dashoffset="weekdayWeekendOffset(i)"
-                            stroke-linecap="butt"
-                            transform="rotate(-90 60 60)"
-                        />
-                        </svg>
-
-                        <!-- Labels -->
-                        <div class="donut-labels">
-                        <div
-                            v-for="d in weekdayWeekendPercentages"
-                            :key="d.key"
-                            class="label"
-                        >
-                            <span
-                            class="dot"
-                            :style="{ background: colors[d.key] }"
-                            ></span>
-                            {{ d.label }} — {{ d.percent.toFixed(0) }}%
-                        </div>
-                        </div>
-                    </div>
-                </section>
-            </Transition>
-
-
+          <!-- Letzte 30 Tage -->
+          <button
+            class="segment-btn"
+            :class="{ active: range === 'month' }"
+            @click="range = 'month'"
+          >
+            month
+          </button>
         </div>
+      </section>
 
-        <!-- BOTTOM NAVIGATION -->
-        <nav class="bottom-nav">
-            <button class="nav-btn is-active" @click="goHome">
-                <img src="/rsc/home1.png" alt="Home" />
-            </button>
+      <!-- ================= TRIGGER SECTION ================= -->
+      <!-- Kreisdiagramm: mögliche Kopfschmerz-Auslöser -->
+      <Transition name="fade-slide" mode="out-in">
+        <section v-if="triggerPercentages" class="trigger-section">
+          <h2>Your Headache Trigger</h2>
 
-            <button class="nav-btn" @click="goWizard">
-                <img src="/rsc/plus1.png" alt="Add" />
-            </button>
+          <div class="donut-row">
+            <!-- Donut-Chart (SVG) -->
+            <svg class="donut" viewBox="0 0 120 120">
 
-            <button class="nav-btn" @click="goReport">
-                <img src="/rsc/report2.png" alt="Reports" />
-            </button>
+              <!-- Hintergrund-Kreis -->
+              <circle
+                cx="60"
+                cy="60"
+                r="45"
+                fill="none"
+                stroke="rgba(255,255,255,0.1)"
+                stroke-width="14"
+              />
 
-            <button class="nav-btn" @click="goProfile">
-                <img src="/rsc/profile1.png" alt="Profile" />
-            </button>
-        </nav>
+              <!-- Einzelne Segmente je Trigger -->
+              <circle
+                v-for="(t, i) in triggerPercentages"
+                :key="t.key"
+                cx="60"
+                cy="60"
+                r="45"
+                fill="none"
+                stroke-width="14"
+                :stroke="colors[t.key]"
+                :stroke-dasharray="dashArray(t.percent)"
+                :stroke-dashoffset="dashOffset(i)"
+                stroke-linecap="butt"
+                transform="rotate(-90 60 60)"
+              />
+            </svg>
+
+            <!-- Legende zum Donut-Chart -->
+            <div class="donut-labels">
+              <div
+                v-for="t in triggerPercentages"
+                :key="t.key"
+                class="label"
+              >
+                <span
+                  class="dot"
+                  :style="{ background: colors[t.key] }"
+                ></span>
+                {{ t.label }} — {{ t.percent.toFixed(0) }}%
+              </div>
+            </div>
+          </div>
+        </section>
+      </Transition>
+
+      <!-- ================= HOURS PER DAY ================= -->
+      <!-- Balkendiagramm: Kopfschmerzstunden pro Tag -->
+      <Transition name="fade-slide" mode="out-in">
+        <section v-if="headacheHoursPerDay.length" class="hours-section">
+          <h2>Hours of headache per day</h2>
+
+          <div class="hours-chart-wrapper">
+
+            <!-- Y-Achse (Stunden-Skala) -->
+            <div class="y-axis">
+              <span>4h</span>
+              <span>3h</span>
+              <span>2h</span>
+              <span>1h</span>
+              <span>0h</span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+
+            <!-- Balkendiagramm -->
+            <div class="hours-chart">
+              <div
+                v-for="d in headacheHoursPerDay"
+                :key="d.date"
+                class="bar-wrapper"
+              >
+                <!-- Balken: Höhe abhängig von Stunden -->
+                <div
+                  class="bar"
+                  :style="{ height: (d.hours / 4) * 100 + 'px' }"
+                ></div>
+
+                <!-- Wochentag -->
+                <span class="day">
+                  {{ new Date(d.date).toLocaleDateString('en', { weekday: 'short' }) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </Transition>
+
+      <!-- ================= WEEKDAY VS WEEKEND ================= -->
+      <!-- Vergleich: Kopfschmerzen an Wochentagen vs. Wochenenden -->
+      <Transition name="fade-slide" mode="out-in">
+        <section
+          v-if="weekdayWeekendPercentages"
+          class="weekday-weekend-section"
+        >
+          <h2>Headache on weekdays vs weekends</h2>
+
+          <div class="donut-row">
+            <!-- Donut-Chart -->
+            <svg class="donut" viewBox="0 0 120 120">
+
+              <!-- Hintergrund-Kreis -->
+              <circle
+                cx="60"
+                cy="60"
+                r="45"
+                fill="none"
+                stroke="rgba(255,255,255,0.1)"
+                stroke-width="14"
+              />
+
+              <!-- Segmente: Weekdays / Weekends -->
+              <circle
+                v-for="(d, i) in weekdayWeekendPercentages"
+                :key="d.key"
+                cx="60"
+                cy="60"
+                r="45"
+                fill="none"
+                stroke-width="14"
+                :stroke="colors[d.key]"
+                :stroke-dasharray="dashArray(d.percent)"
+                :stroke-dashoffset="weekdayWeekendOffset(i)"
+                stroke-linecap="butt"
+                transform="rotate(-90 60 60)"
+              />
+            </svg>
+
+            <!-- Legende -->
+            <div class="donut-labels">
+              <div
+                v-for="d in weekdayWeekendPercentages"
+                :key="d.key"
+                class="label"
+              >
+                <span
+                  class="dot"
+                  :style="{ background: colors[d.key] }"
+                ></span>
+                {{ d.label }} — {{ d.percent.toFixed(0) }}%
+              </div>
+            </div>
+          </div>
+        </section>
+      </Transition>
+
     </div>
+
+    <!-- ================= BOTTOM NAVIGATION ================= -->
+    <!-- Feste Navigation am unteren Bildschirmrand -->
+    <nav class="bottom-nav">
+      <button class="nav-btn is-active" @click="goHome">
+        <img src="/rsc/home1.png" alt="Home" />
+      </button>
+
+      <button class="nav-btn" @click="goWizard">
+        <img src="/rsc/plus1.png" alt="Add" />
+      </button>
+
+      <button class="nav-btn" @click="goReport">
+        <img src="/rsc/report2.png" alt="Reports" />
+      </button>
+
+      <button class="nav-btn" @click="goProfile">
+        <img src="/rsc/profile1.png" alt="Profile" />
+      </button>
+    </nav>
+  </div>
 </template>
+
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
@@ -215,21 +235,79 @@ import { useRouter } from 'vue-router'
 import { useDailyStore } from '@/state/dailyState'
 import { useLocalDate } from '@/composables/useLocalDate'
 
+/**
+ * Report-View (Auswertung).
+ *
+ * Zeigt eine Auswertung der Kopfschmerz-Daten über einen wählbaren Zeitraum
+ * (Woche / 2 Wochen / Monat).
+ *
+ * WICHTIG: Solange der Nutzer die heutige Umfrage noch nicht abgeschlossen hat,
+ * werden die Daten nur bis "gestern" ausgewertet (damit "heute" nicht als fehlend
+ * oder unvollständig in die Statistik reinzieht). Sobald die Umfrage abgeschlossen ist,
+ * wird auch der heutige Tag in die Auswertung einbezogen.
+ */
+
+/**
+ * Aktuell ausgewählter Zeitraum für die Report-Auswertung.
+ * Mögliche Werte: 'week' | '2weeks' | 'month'
+ * @type {import('vue').Ref<string>}
+ */
 const range = ref('week')
+
+/**
+ * Vue Router Instanz für Navigation (Bottom Nav).
+ */
 const router = useRouter()
+
+/**
+ * Pinia Store: Tages-Status (ob heutige Umfrage abgeschlossen wurde).
+ */
 const dailyStore = useDailyStore()
+
+/**
+ * Reaktive Store-Refs (Pinia).
+ * didDailySurveyToday: true, wenn die heutige Umfrage beendet wurde.
+ */
 const { didDailySurveyToday } = storeToRefs(dailyStore)
+
+/**
+ * Lokale Datums-Helfer (ohne UTC-Shift).
+ * - toLocalIsoDate: Date -> 'YYYY-MM-DD'
+ * - addDays: 'YYYY-MM-DD' -> 'YYYY-MM-DD' + delta
+ */
 const { toLocalIsoDate, addDays } = useLocalDate()
+
+/**
+ * Alle geladenen Einträge aus der JSON-Datei.
+ * @type {import('vue').Ref<Array<object>>}
+ */
 const entries = ref([])
 
+/**
+ * Heutiges Datum als lokales ISO-Datum (YYYY-MM-DD).
+ */
 const todayStr = computed(() => toLocalIsoDate(new Date()))
 
+/**
+ * Enddatum für den Report.
+ *
+ * Wenn die heutige Umfrage noch NICHT abgeschlossen wurde:
+ * - Enddatum = gestern
+ *
+ * Wenn die Umfrage abgeschlossen ist:
+ * - Enddatum = heute
+ */
 const reportEndDate = computed(() => {
   // wenn Umfrage NICHT finished: nur bis gestern
   return didDailySurveyToday.value ? todayStr.value : addDays(todayStr.value, -1)
 })
 
-// Zeitraum filtern
+/**
+ * Gefilterte Einträge für den ausgewählten Zeitraum.
+ *
+ * - Zeitraum hängt vom Segment (week, 2weeks, month) ab.
+ * - Es werden nur beantwortete Tage berücksichtigt (headacheAnswered === true).
+ */
 const filteredEntries = computed(() => {
   if (entries.value.length === 0) return []
 
@@ -249,11 +327,18 @@ const filteredEntries = computed(() => {
   )
 })
 
-
+/**
+ * Alle Tage im Zeitraum, an denen Kopfschmerzen gemeldet wurden.
+ */
 const headacheDays = computed(() =>
   filteredEntries.value.filter(e => e.headache)
 )
 
+/**
+ * Alle Tage im Zeitraum, an denen KEINE Kopfschmerzen gemeldet wurden.
+ * Fallback: falls im Zeitraum keine "normalen Tage" existieren,
+ * werden normale Tage aus dem gesamten Datensatz verwendet.
+ */
 const normalDays = computed(() => {
   const n = filteredEntries.value.filter(e => !e.headache)
 
@@ -265,6 +350,13 @@ const normalDays = computed(() => {
   return n
 })
 
+/**
+ * Berechnet den Durchschnitt eines numerischen Felds für eine Liste von Einträgen.
+ *
+ * @param {Array<object>} list - Liste der Einträge.
+ * @param {string} key - Feldname, dessen Werte gemittelt werden.
+ * @returns {number} Durchschnittswert.
+ */
 function avg(list, key) {
   if (list.length === 0) return 0
   return (
@@ -273,6 +365,16 @@ function avg(list, key) {
   )
 }
 
+/**
+ * Analyse der Trigger: Vergleich zwischen Kopfschmerz-Tagen und normalen Tagen.
+ *
+ * Ergebnis enthält "headache" vs. "normal" für:
+ * - Schlafstunden
+ * - Screen-Time
+ * - Wasser
+ * - Stress
+ * - Koffein (Anteil in % als 0..1, später skaliert)
+ */
 const triggerAnalysis = computed(() => {
   if (headacheDays.value.length === 0) return null
 
@@ -304,6 +406,16 @@ const triggerAnalysis = computed(() => {
   }
 })
 
+/**
+ * Trigger-Stärke: Positive Differenzwerte als "Beitrag" zum Trigger.
+ *
+ * Idee:
+ * - Weniger Schlaf bei Kopfschmerz -> lessSleep
+ * - Mehr Screen-Time bei Kopfschmerz -> moreScreen
+ * - Weniger Wasser -> dehydration
+ * - Mehr Stress -> stress
+ * - Koffein: Differenz der Anteile (in Prozent skaliert)
+ */
 const triggerStrength = computed(() => {
   if (!triggerAnalysis.value) return null
 
@@ -318,6 +430,12 @@ const triggerStrength = computed(() => {
   }
 })
 
+/**
+ * Trigger als Prozentwerte für das Donut-Chart.
+ *
+ * Es werden nur Trigger mit value > 0 angezeigt.
+ * Die Werte werden auf 100% normiert.
+ */
 const triggerPercentages = computed(() => {
   if (!triggerStrength.value) return null
 
@@ -339,7 +457,10 @@ const triggerPercentages = computed(() => {
   }))
 })
 
-
+/**
+ * Lädt Seed-Daten aus /headacheEntries.json und normalisiert
+ * headacheAnswered (Fallback, falls nur "headache" boolean existiert).
+ */
 onMounted(async () => {
   const res = await fetch('/headacheEntries.json')
   const data = await res.json()
@@ -355,15 +476,34 @@ onMounted(async () => {
   }).sort((a, b) => new Date(a.date) - new Date(b.date))
 })
 
+/* ================= Donut-Berechnung (SVG) ================= */
 
-// Logik der Kreisberechnung
+/**
+ * Radius des Donut-Charts (muss zum SVG passen).
+ */
 const radius = 45
+
+/**
+ * Umfang des Kreises (circumference) für Dasharray-Berechnungen.
+ */
 const circumference = 2 * Math.PI * radius
 
+/**
+ * Erzeugt stroke-dasharray für ein Segment basierend auf Prozentwert.
+ *
+ * @param {number} percent - Prozentanteil (0..100).
+ * @returns {string} dasharray-String für SVG circle.
+ */
 function dashArray(percent) {
   return `${(percent / 100) * circumference} ${circumference}`
 }
 
+/**
+ * Erzeugt stroke-dashoffset für Segment-Index, damit Segmente aneinander liegen.
+ *
+ * @param {number} index - Index des Segments in triggerPercentages.
+ * @returns {number} dashoffset (negativ, da Rotation/Zeichnung).
+ */
 function dashOffset(index) {
   if (!triggerPercentages.value) return 0
 
@@ -374,7 +514,10 @@ function dashOffset(index) {
   return -((offset / 100) * circumference)
 }
 
-
+/**
+ * Farbpalette für Charts.
+ * Keys müssen zu den triggerPercentages keys passen.
+ */
 const colors = {
   sleep: '#f2d3c9',
   screen: '#c8b6e2',
@@ -385,6 +528,9 @@ const colors = {
   weekends: '#735290',
 }
 
+/**
+ * Trigger-Daten inkl. Winkelinformationen (optional nützlich für Labels/Marker).
+ */
 const triggerWithAngles = computed(() => {
   if (!triggerPercentages.value) return []
 
@@ -404,7 +550,12 @@ const triggerWithAngles = computed(() => {
   })
 })
 
-// Headache per Day
+/* ================= Hours per Day ================= */
+
+/**
+ * Für das Balkendiagramm: Kopfschmerz-Stunden der letzten 7 Tage
+ * innerhalb des gefilterten Zeitraums.
+ */
 const headacheHoursPerDay = computed(() => {
   if (filteredEntries.value.length === 0) return []
 
@@ -418,7 +569,11 @@ const headacheHoursPerDay = computed(() => {
   }))
 })
 
-// weekdays vs weekends
+/* ================= Weekdays vs Weekends ================= */
+
+/**
+ * Durchschnittliche Kopfschmerz-Stunden an Wochentagen vs. Wochenende.
+ */
 const weekdayVsWeekend = computed(() => {
   if (filteredEntries.value.length === 0) return null
 
@@ -432,6 +587,12 @@ const weekdayVsWeekend = computed(() => {
     return day === 0 || day === 6
   })
 
+  /**
+   * Durchschnitt Kopfschmerzstunden pro Tag in einer Liste.
+   *
+   * @param {Array<object>} list - Liste von Einträgen (Tage).
+   * @returns {number} Durchschnittliche Kopfschmerzstunden.
+   */
   function avgHours(list) {
     if (list.length === 0) return 0
     return (
@@ -450,6 +611,9 @@ const weekdayVsWeekend = computed(() => {
   }
 })
 
+/**
+ * Prozentwerte für das Weekday/Weekend Donut-Chart.
+ */
 const weekdayWeekendPercentages = computed(() => {
   if (!weekdayVsWeekend.value) return null
 
@@ -475,6 +639,12 @@ const weekdayWeekendPercentages = computed(() => {
   ]
 })
 
+/**
+ * Dashoffset für das Weekday/Weekend Donut-Chart.
+ *
+ * @param {number} index - Index des Segments.
+ * @returns {number} dashoffset.
+ */
 function weekdayWeekendOffset(index) {
   if (!weekdayWeekendPercentages.value) return 0
 
@@ -485,24 +655,37 @@ function weekdayWeekendOffset(index) {
   return -((offset / 100) * circumference)
 }
 
+/* ================= Navigation (Bottom Nav) ================= */
 
-
+/**
+ * Navigiert zur Home-Ansicht.
+ */
 function goHome() {
   router.push('/home')
 }
 
+/**
+ * Navigiert zur Profile-Ansicht.
+ */
 function goProfile() {
   router.push('/profile')
 }
 
+/**
+ * Navigiert zur Intro-Ansicht des Wizards.
+ */
 function goWizard() {
   router.push('/headache')
 }
 
+/**
+ * Navigiert zur Report-Ansicht (aktuelle Seite).
+ */
 function goReport() {
   router.push('/headache-report')
 }
 </script>
+
 
 <style scoped>
 .report {

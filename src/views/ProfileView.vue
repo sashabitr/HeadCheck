@@ -1,46 +1,63 @@
 <template>
   <div class="profile">
     <div class="profile-inner">
-      <!-- Statusbar -->
+
+      <!-- STATUSBAR -->
+      <!-- Simulierte Statusleiste (Uhrzeit, Empfang, Akku) -->
       <header class="status-bar">
         <span class="time">9:41</span>
         <span class="status-spacer"></span>
         <span class="status-icons">📶 🔋</span>
       </header>
 
-      <!-- Großer Avatar -->
+      <!-- PROFIL HEADER -->
+      <!-- Avatar, Bearbeiten-Button und Name -->
       <section class="profile-header">
+
+        <!-- Großer Avatar -->
         <div class="big-avatar">
-          <!-- großes Profil-Icon  -->
-          <img src="/rsc/profile1.png" alt="Profile" class="big-avatar-img" />
+          <img
+            src="/rsc/profile1.png"
+            alt="Profile"
+            class="big-avatar-img"
+          />
         </div>
+
+        <!-- Platzhalter für Profil-Bearbeitung -->
         <button class="edit-btn">Edit</button>
 
+        <!-- Anzeigename -->
         <h1 class="profile-name">
           Mustermann<br />
           Nachname
         </h1>
       </section>
 
-      <!-- Einstellungs-Optionen -->
+      <!-- EINSTELLUNGEN  -->
       <section class="profile-options">
+
+        <!-- ===== ACCOUNT ===== -->
         <div class="section-block">
           <div class="section-title">Account</div>
+
           <button class="option-row" type="button">
             <img src="/rsc/profile1.png" alt="" class="option-icon" />
             <span class="option-text">My Profile</span>
             <span class="option-chevron">&gt;</span>
           </button>
+
           <button class="option-row" type="button">
             <img src="/rsc/globe.png" alt="" class="option-icon" />
             <span class="option-text">Change Email</span>
             <span class="option-chevron">&gt;</span>
           </button>
+
           <button class="option-row" type="button">
             <img src="/rsc/lock.png" alt="" class="option-icon" />
             <span class="option-text">Change Password</span>
             <span class="option-chevron">&gt;</span>
           </button>
+
           <button class="option-row" type="button">
             <img src="/rsc/lock.png" alt="" class="option-icon" />
             <span class="option-text">Privacy Settings</span>
@@ -48,18 +65,22 @@
           </button>
         </div>
 
+        <!-- SUPPORT -->
         <div class="section-block">
           <div class="section-title">Support</div>
+
           <button class="option-row" type="button">
             <img src="/rsc/lamp.png" alt="" class="option-icon" />
             <span class="option-text">Help &amp; FAQ</span>
             <span class="option-chevron">&gt;</span>
           </button>
+
           <button class="option-row" type="button">
             <img src="/rsc/report1.png" alt="" class="option-icon" />
             <span class="option-text">Report a Problem</span>
             <span class="option-chevron">&gt;</span>
           </button>
+
           <button class="option-row" type="button">
             <img src="/rsc/tap.png" alt="" class="option-icon" />
             <span class="option-text">Feedback</span>
@@ -67,11 +88,13 @@
           </button>
         </div>
 
+        <!-- AKTIONEN  -->
         <div class="section-block actions-block">
           <button class="option-row" type="button">
             <img src="/rsc/close.png" alt="" class="option-icon" />
             <span class="option-text">Log out</span>
           </button>
+
           <button class="option-row danger" type="button">
             <img src="/rsc/report2.png" alt="" class="option-icon" />
             <span class="option-text">Delete Account</span>
@@ -80,17 +103,21 @@
       </section>
     </div>
 
-    <!-- Bottom Navigation -->
+    <!-- BOTTOM NAVIGATION  -->
+    <!-- Feste Navigation am unteren Bildschirmrand -->
     <nav class="bottom-nav">
       <button class="nav-btn" @click="goHome">
         <img src="/rsc/home1.png" alt="Home" />
       </button>
+
       <button class="nav-btn" @click="goWizard">
         <img src="/rsc/plus1.png" alt="Add" />
       </button>
+
       <button class="nav-btn" @click="goReport">
         <img src="/rsc/report1.png" alt="Reports" />
       </button>
+
       <button class="nav-btn is-active">
         <img src="/rsc/profile2.png" alt="Profile" />
       </button>
@@ -101,16 +128,44 @@
 <script setup>
 import { useRouter } from 'vue-router'
 
+/**
+ * ProfileView
+ *
+ * Diese View stellt die Profil- und Einstellungsseite der App dar.
+ * Sie enthält:
+ * - Benutzerinformationen (Avatar, Name)
+ * - Account- und Support-Optionen
+ * - Eine Bottom-Navigation zur App-Navigation
+ */
+
+/**
+ * Vue Router Instanz zur Navigation zwischen Views.
+ */
 const router = useRouter()
 
+/**
+ * Navigiert zur Home-Seite.
+ *
+ * Wird über die Bottom-Navigation ausgelöst.
+ */
 function goHome() {
   router.push('/home')
 }
 
+/**
+ * Navigiert zur Intro-Seite des Daily-Wizards.
+ *
+ * Von dort startet der tägliche Kopfschmerz-Check.
+ */
 function goWizard() {
   router.push('/headache')
 }
 
+/**
+ * Navigiert zur Report-Seite.
+ *
+ * Dort werden Auswertungen und Diagramme angezeigt.
+ */
 function goReport() {
   router.push('/headache-report')
 }

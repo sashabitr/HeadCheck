@@ -1,16 +1,33 @@
+<!-- src/views/SplashView.vue -->
 <template>
+  <!-- ================= SPLASH SCREEN ================= -->
+  <!-- Start-/Begrüßungsansicht der App -->
   <div class="splash" @click="goNext">
-    <div class="hero">
-      <img src="/rsc/human-brain.png" class="logo" alt="Brain Logo" />
 
+    <!-- Zentrales Hero-Element (Logo + Titel) -->
+    <div class="hero">
+
+      <!-- Gehirn-Icon als visuelles Hauptmotiv -->
+      <img
+        src="/rsc/human-brain.png"
+        class="logo"
+        alt="Brain Logo"
+      />
+
+      <!-- App-Titel, zweizeilig gestaltet -->
       <div class="title">
         <span class="line1">Head</span>
         <span class="line2">Check</span>
       </div>
     </div>
 
+    <!-- Hinweisbereich am unteren Bildschirmrand -->
     <div class="bottom">
-      <img src="/rsc/tap.png" class="tap-icon" alt="Tap icon" />
+      <img
+        src="/rsc/tap.png"
+        class="tap-icon"
+        alt="Tap icon"
+      />
       <p>Tap to continue</p>
     </div>
   </div>
@@ -18,19 +35,31 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+
+/**
+ * Router-Instanz für die Navigation
+ */
 const router = useRouter()
 
+/**
+ * Wird beim Klick auf den Splash-Screen ausgeführt.
+ * Startet eine Blur-Out-Animation und navigiert
+ * nach deren Ende zur Home-Ansicht.
+ */
 function goNext() {
+  // Splash-Element aus dem DOM holen
   const splash = document.querySelector('.splash')
+
+  // Fallback: Falls Element nicht existiert, direkt navigieren
   if (!splash) {
     router.push('/home')
     return
   }
 
-  // ⭐ langsame Blur-Out Animation starten
+  // ⭐ Blur-Out-Animation per CSS-Klasse starten
   splash.classList.add('blur-out')
 
-  // Navigation nach Animation (0.8s)
+  // Navigation nach Ende der Animation (0.8 Sekunden)
   setTimeout(() => {
     router.push('/home')
   }, 800)
@@ -38,6 +67,8 @@ function goNext() {
 </script>
 
 <style scoped>
+/* ================= SPLASH CONTAINER ================= */
+/* Vollflächiger Startscreen mit Farbverlauf */
 .splash {
   height: 100%;
   width: 100%;
@@ -60,7 +91,8 @@ function goNext() {
   filter: blur(0px);
 }
 
-/* Bild + Text übereinander */
+/* ================= HERO BEREICH ================= */
+/* Logo und Titel liegen übereinander */
 .hero {
   position: relative;
   display: flex;
@@ -68,16 +100,19 @@ function goNext() {
   align-items: center;
 }
 
-/* Kopf-Logo */
+/* Gehirn-Logo */
 .logo {
   width: 350px;
   height: auto;
   opacity: 0.8;
   transform: scaleX(-1);
-  filter: invert(80%) grayscale(1) brightness(0.4) drop-shadow(0px 4px 12px rgba(0, 0, 0, 0.3));
+  filter: invert(80%)
+    grayscale(1)
+    brightness(0.4)
+    drop-shadow(0px 4px 12px rgba(0, 0, 0, 0.3));
 }
 
-/* Titel */
+/* Titel-Container */
 .title {
   position: absolute;
   top: 50%;
@@ -88,19 +123,22 @@ function goNext() {
   text-align: left;
 }
 
+/* Erste Titelzeile */
 .line1 {
   display: block;
   font-size: clamp(4.5rem, 5vw, 3rem);
   margin-left: -10px;
 }
 
+/* Zweite Titelzeile (versetzt) */
 .line2 {
   display: block;
   font-size: clamp(4.5rem, 5vw, 3rem);
   margin-left: 60px;
 }
 
-/* Tap-Bereich unten */
+/* ================= UNTERER HINWEIS ================= */
+/* Tap-Hinweis am unteren Bildschirmrand */
 .bottom {
   position: absolute;
   bottom: 32px;
@@ -112,13 +150,14 @@ function goNext() {
   gap: 8px;
 }
 
+/* Tap-Icon mit Pulsanimation */
 .tap-icon {
   width: 50px;
   height: 50px;
   animation: pulse 1.6s infinite ease-in-out;
 }
 
-/* Puls Animation für Tap-Icon */
+/* Puls-Animation für das Tap-Icon */
 @keyframes pulse {
   0% {
     transform: scale(1);
@@ -134,11 +173,13 @@ function goNext() {
   }
 }
 
-/* ⭐ LANGSAME Blur-Out Transition */
+/* ================= BLUR-OUT ANIMATION ================= */
+/* Wird beim Klick aktiviert */
 .blur-out {
   animation: blurOut 0.8s ease forwards;
 }
 
+/* Übergangsanimation beim Verlassen des Splash-Screens */
 @keyframes blurOut {
   0% {
     opacity: 1;

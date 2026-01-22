@@ -1,16 +1,23 @@
-<!-- src/views/HeadacheWizardView.vue -->
 <template>
+  <!-- Gesamter Wizard-Container -->
   <div class="wizard">
-    <!-- Status bar -->
+
+    <!-- STATUS BAR -->
+    <!-- Simulierte Statusleiste (Uhrzeit, Empfang, Akku) -->
     <header class="status-bar">
       <span class="time">9:41</span>
       <span class="spacer"></span>
       <span class="status-icons">📶 🔋</span>
     </header>
 
-    <!-- Title + Progress -->
+    <!-- HEADER -->
+    <!-- Titel, Abbrechen-Button, Info-Tipp und Fortschrittsanzeige -->
     <section class="header">
+
+      <!-- Titelzeile -->
       <div class="title-row">
+
+        <!-- Wizard abbrechen / Zurück zur Home-Seite -->
         <button
           ref="closeWizardButtonRef"
           class="close-wizard-btn"
@@ -19,9 +26,20 @@
         >
           close
         </button>
+
+        <!-- Titel des Wizards -->
         <span class="title">Headache Check</span>
-        <button ref="tipButtonRef" class="tip-btn" aria-label="Info" @click.stop="openTip">
+
+        <!-- Info-Button für kontextabhängige Tipps -->
+        <button
+          ref="tipButtonRef"
+          class="tip-btn"
+          aria-label="Info"
+          @click.stop="openTip"
+        >
+          <!-- Icon -->
           <svg viewBox="0 0 24 24" aria-hidden="true">
+            <!-- Glühbirnen-Symbol -->
             <path
               d="M9.5 19h5v-1.2c0-1.1.5-1.8 1.2-2.7.8-1 1.8-2.4 1.8-4.6A6.5 6.5 0 0 0 12 4 6.5 6.5 0 0 0 6.5 10.5c0 2.2 1 3.6 1.8 4.6.7.9 1.2 1.6 1.2 2.7z"
               fill="none"
@@ -32,43 +50,62 @@
             />
             <path d="M10 20.2h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
             <path d="M12 2.8v1.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
-            <path
-              d="M5.6 6.2 6.7 7"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-            />
-            <path
-              d="M18.4 6.2 17.3 7"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-            />
+            <path d="M5.6 6.2 6.7 7" stroke="currentColor" stroke-width="1.6" />
+            <path d="M18.4 6.2 17.3 7" stroke="currentColor" stroke-width="1.6" />
           </svg>
+
+          <!-- Screenreader-Text -->
           <span v-if="showTip" class="sr-only">Tip open</span>
           <span v-else class="sr-only">Tip closed</span>
         </button>
       </div>
+
+      <!-- Fortschrittsanzeige -->
       <div class="progress-row">
+        <!-- Balken -->
         <div class="progress-track">
-          <div class="progress-fill" :style="{ width: progressWidth }"></div>
+          <div
+            class="progress-fill"
+            :style="{ width: progressWidth }"
+          ></div>
         </div>
-        <span class="progress-label">questions {{ stepNumber }} of {{ totalSteps }}</span>
+
+        <!-- Textuelle Fortschrittsanzeige -->
+        <span class="progress-label">
+          questions {{ stepNumber }} of {{ totalSteps }}
+        </span>
       </div>
     </section>
 
-    <!-- Question card -->
+    <!-- ================= QUESTION CARD ================= -->
+    <!-- Zentrale Karte mit Fragen und Eingaben -->
     <section class="card">
+
+      <!-- Dekoratives Bild je Schritt (rein visuell) -->
       <div class="hero-panel" aria-hidden="true">
-        <img class="hero-image" :src="heroPrimarySrc" alt="" @error="handleHeroError" />
+        <img
+          class="hero-image"
+          :src="heroPrimarySrc"
+          alt=""
+          @error="handleHeroError"
+        />
       </div>
+
+      <!-- Übergang zwischen den einzelnen Schritten -->
       <Transition name="step-blur" mode="out-in">
         <div :key="currentStep" class="step">
-          <div class="step-badge">Step {{ stepNumber }} of {{ totalSteps }}</div>
+
+          <!-- Schritt-Anzeige innerhalb der Karte -->
+          <div class="step-badge">
+            Step {{ stepNumber }} of {{ totalSteps }}
+          </div>
+
+          <!-- STEP: HEADACHE -->
           <div v-if="currentStep === 'headache'">
             <h2>Did you have a headache today?</h2>
             <YesNoChoice v-model="answers.headache" />
 
+            <!-- Dauer nur aktiv, wenn "yes" ausgewählt -->
             <div class="field field-spaced">
               <label>How long?</label>
               <div class="input-with-suffix">
@@ -77,32 +114,30 @@
                   type="number"
                   min="0"
                   max="24"
-                  inputmode="numeric"
                   placeholder="0"
                   :disabled="answers.headache !== 'yes'"
-                  @input="enforceNonNegativeInput($event, 'headacheDuration', { max: 24 })"
                 />
                 <span>h</span>
               </div>
             </div>
           </div>
 
+          <!-- STEP: SLEEP  -->
           <div v-else-if="currentStep === 'sleep'">
             <h2>How many hours did you sleep?</h2>
+
             <div class="input-with-suffix field-inline">
               <input
                 v-model="answers.sleepHours"
                 type="number"
                 min="0"
                 max="24"
-                step="0.1"
-                inputmode="decimal"
                 placeholder="0"
-                @input="enforceNonNegativeInput($event, 'sleepHours', { allowDecimal: true, max: 24 })"
               />
               <span>h</span>
             </div>
 
+            <!-- Schlafqualität -->
             <div class="field field-slider">
               <label>Rate your sleep:</label>
               <input v-model.number="answers.sleepQuality" type="range" min="1" max="5" />
@@ -112,22 +147,16 @@
             </div>
           </div>
 
+          <!-- STEP: WATER -->
           <div v-else-if="currentStep === 'water'">
             <h2>How much water did you drink today?</h2>
             <div class="input-with-suffix field-inline">
-              <input
-                v-model="answers.waterLiters"
-                type="number"
-                min="0"
-                step="0.1"
-                inputmode="decimal"
-                placeholder="0"
-                @input="enforceNonNegativeInput($event, 'waterLiters', { allowDecimal: true })"
-              />
+              <input v-model="answers.waterLiters" type="number" min="0" step="0.1" />
               <span>L</span>
             </div>
           </div>
 
+          <!-- STEP: CAFFEINE -->
           <div v-else-if="currentStep === 'caffeine'">
             <h2>Did you consume caffeine today?</h2>
             <YesNoChoice v-model="answers.caffeine" />
@@ -139,50 +168,32 @@
                   v-model="answers.caffeineCups"
                   type="number"
                   min="0"
-                  inputmode="numeric"
-                  placeholder="0"
                   :disabled="answers.caffeine !== 'yes'"
-                  @input="enforceNonNegativeInput($event, 'caffeineCups')"
                 />
                 <span>cups</span>
               </div>
             </div>
           </div>
 
+          <!-- STEP: WORK -->
           <div v-else-if="currentStep === 'work'">
             <h2>How long did you work/study today?</h2>
             <div class="input-with-suffix field-inline">
-              <input
-                v-model="answers.workHours"
-                type="number"
-                min="0"
-                max="24"
-                step="0.1"
-                inputmode="decimal"
-                placeholder="0"
-                @input="enforceNonNegativeInput($event, 'workHours', { allowDecimal: true, max: 24 })"
-              />
+              <input v-model="answers.workHours" type="number" min="0" step="0.1" />
               <span>h</span>
             </div>
           </div>
 
+          <!-- STEP: SCREEN -->
           <div v-else-if="currentStep === 'screen'">
             <h2>How long were you in front of a screen?</h2>
             <div class="input-with-suffix field-inline">
-              <input
-                v-model="answers.screenHours"
-                type="number"
-                min="0"
-                max="24"
-                step="0.1"
-                inputmode="decimal"
-                placeholder="0"
-                @input="enforceNonNegativeInput($event, 'screenHours', { allowDecimal: true, max: 24 })"
-              />
+              <input v-model="answers.screenHours" type="number" min="0" step="0.1" />
               <span>h</span>
             </div>
           </div>
 
+          <!-- STEP: STRESS -->
           <div v-else-if="currentStep === 'stress'">
             <h2>Rate your stress level today:</h2>
             <div class="field field-slider">
@@ -192,37 +203,66 @@
               </div>
             </div>
           </div>
+
         </div>
       </Transition>
     </section>
 
-    <!-- Footer -->
+    <!-- FOOTER -->
+    <!-- Navigation zum nächsten Schritt oder Abschluss -->
     <footer class="footer">
-      <Button class="next-btn" :disabled="!canProceed" type="button" @click="goNext">
+      <Button
+        class="next-btn"
+        :disabled="!canProceed"
+        type="button"
+        @click="goNext"
+      >
         <span v-if="isLastStep">finish</span>
         <span v-else>next</span>
         <span class="arrow">→</span>
       </Button>
     </footer>
 
-    <!-- Tip modal -->
+    <!-- TIP MODAL -->
+    <!-- Kontextabhängige Hinweise pro Schritt -->
     <AppModal :open="showTip" :title="currentTip.title" @close="closeTip">
       <p>{{ currentTip.body }}</p>
       <button class="close-btn" type="button" @click="closeTip">OK</button>
     </AppModal>
 
-    <!-- Stop confirm modal -->
-    <AppModal :open="showStopConfirm" title="Stop the check?" @close="closeStopConfirm">
+    <!-- TOP CONFIRM MODAL -->
+    <!-- Sicherheitsabfrage beim Abbrechen des Wizards -->
+    <AppModal
+      :open="showStopConfirm"
+      title="Stop the check?"
+      @close="closeStopConfirm"
+    >
       <p>you sure you want to stop ?</p>
       <template #actions>
-        <button class="secondary-btn" type="button" @click="closeStopConfirm">Cancel</button>
-        <button class="close-btn" type="button" @click="confirmStop">Stop</button>
+        <button class="secondary-btn" type="button" @click="closeStopConfirm">
+          Cancel
+        </button>
+        <button class="close-btn" type="button" @click="confirmStop">
+          Stop
+        </button>
       </template>
     </AppModal>
+
   </div>
 </template>
 
+
 <script setup>
+/**
+ * HeadacheWizardView – Script-Logik
+ *
+ * Steuert den mehrstufigen Daily-Check-Wizard:
+ * - Fortschritt & Navigation
+ * - Validierung der Eingaben
+ * - Persistenz der heutigen Umfrage
+ * - Berechnung des finalen Streaks
+ */
+
 import { computed, nextTick, reactive, ref, toRefs, watch } from 'vue'
 import { useFocus } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -236,22 +276,67 @@ import { useForm } from 'vee-validate'
 import { z } from 'zod'
 import { useDailyStore } from '@/state/dailyState'
 
+/**
+ * Key für localStorage-Eintrag der heutigen Umfrage.
+ */
 const DAILY_SURVEY_STORAGE_KEY = 'dailySurveyResult'
 
+/* ================= Router & Store ================= */
+
+/**
+ * Vue Router Instanz für Navigation.
+ */
 const router = useRouter()
+
+/**
+ * Pinia Store für Tagesstatus.
+ */
 const dailyStore = useDailyStore()
+
+/**
+ * Reaktive Referenz:
+ * true → heutige Umfrage abgeschlossen
+ */
 const { didDailySurveyToday } = storeToRefs(dailyStore)
+
+/**
+ * Lokale Datums-Helfer (ohne UTC-Shift).
+ */
 const { toLocalIsoDate } = useLocalDate()
 
+/* ================= Fokus-Handling (Accessibility) ================= */
+
+/**
+ * Referenzen für Fokus-Rückgabe nach Modal-Schließen.
+ */
 const closeWizardButtonRef = ref(null)
 const tipButtonRef = ref(null)
+
 const { focused: closeWizardFocused } = useFocus(closeWizardButtonRef)
 const { focused: tipButtonFocused } = useFocus(tipButtonRef)
 
+/* ================= Wizard Steps ================= */
+
+/**
+ * Reihenfolge der Wizard-Schritte.
+ */
 const steps = ['headache', 'sleep', 'water', 'caffeine', 'work', 'screen', 'stress']
+
+/**
+ * Aktueller Schritt-Index.
+ */
 const stepIndex = ref(0)
+
+/**
+ * Gesamtanzahl der Schritte.
+ */
 const totalSteps = steps.length
 
+/* ================= Antworten (Form State) ================= */
+
+/**
+ * Reaktives Objekt mit allen Antworten des Wizards.
+ */
 const answers = reactive({
   headache: '',
   headacheDuration: '',
@@ -265,6 +350,12 @@ const answers = reactive({
   stressLevel: 3,
 })
 
+/* ================= Validierung ================= */
+
+/**
+ * Zod-Schema für vee-validate.
+ * Alle Felder optional, da Schritt-für-Schritt validiert wird.
+ */
 const formSchema = toTypedSchema(
   z.object({
     headache: z.string().optional(),
@@ -280,18 +371,48 @@ const formSchema = toTypedSchema(
   }),
 )
 
+/**
+ * vee-validate Form-Hooks.
+ */
 const { setValues, validate } = useForm({
   validationSchema: formSchema,
   initialValues: { ...answers },
 })
 
+/* ================= Computed States ================= */
+
+/**
+ * Aktuelle Schritt-Nummer (1-basiert).
+ */
 const stepNumber = computed(() => stepIndex.value + 1)
+
+/**
+ * Aktueller Schritt-Key.
+ */
 const currentStep = computed(() => steps[stepIndex.value])
+
+/**
+ * true, wenn letzter Schritt erreicht ist.
+ */
 const isLastStep = computed(() => stepNumber.value === totalSteps)
-const progressWidth = computed(() => `${(stepNumber.value / totalSteps) * 100}%`)
+
+/**
+ * Breite des Fortschrittsbalkens in Prozent.
+ */
+const progressWidth = computed(
+  () => `${(stepNumber.value / totalSteps) * 100}%`
+)
+
+/* ================= Hero Images ================= */
+
 const heroPrimarySrc = '/rsc/Headcheck-Hero.png'
 const heroFallbackSrc = '/rsc/human-brain.png'
 
+/* ================= Tipps ================= */
+
+/**
+ * Kontextabhängige Tipps je Schritt.
+ */
 const tips = {
   headache: {
     title: 'Quick note',
@@ -299,34 +420,46 @@ const tips = {
   },
   sleep: {
     title: "Don't forget",
-    body: 'Your body needs at least 8 hours of sleep to fully recharge. 🛏️',
+    body: 'Your body needs at least 8 hours of sleep to fully recharge.',
   },
   water: {
-    title: 'Remember to stay hydrated!',
-    body: 'Many people need around 2–3 liters (8–12 cups) of water per day. 💧',
+    title: 'Stay hydrated',
+    body: 'Many people need around 2–3 liters of water per day.',
   },
   caffeine: {
     title: 'Coffee guide',
-    body: 'Many people stay under 3–4 cups of coffee a day. ☕️',
+    body: 'Most people stay under 3–4 cups a day.',
   },
   work: {
     title: 'Productivity',
-    body: 'Take short breaks from work or study from time to time. 🧑‍💻',
+    body: 'Short breaks improve focus and health.',
   },
   screen: {
     title: 'Screen time',
-    body: 'Long screen sessions can trigger headaches. 🖥️',
+    body: 'Long screen exposure can trigger headaches.',
   },
   stress: {
-    title: 'Your stress level',
-    body: 'Your body needs a break from stress sometimes. 🧠',
+    title: 'Stress',
+    body: 'Your body needs recovery from stress.',
   },
 }
 
+/**
+ * Aktueller Tipp basierend auf dem Schritt.
+ */
 const currentTip = computed(
-  () => tips[currentStep.value] ?? { title: 'Tip', body: 'Keep your entries consistent each day.' },
+  () =>
+    tips[currentStep.value] ?? {
+      title: 'Tip',
+      body: 'Keep your entries consistent each day.',
+    },
 )
 
+/* ================= UI State ================= */
+
+/**
+ * UI-Zustände für Modals.
+ */
 const uiState = reactive({
   showTip: false,
   showStopConfirm: false,
@@ -334,70 +467,66 @@ const uiState = reactive({
 
 const { showTip, showStopConfirm } = toRefs(uiState)
 
+/* ================= Helper ================= */
+
+/**
+ * Prüft, ob ein Wert gesetzt ist.
+ *
+ * @param {*} v
+ * @returns {boolean}
+ */
 const hasValue = (v) => v !== null && v !== undefined && v !== ''
 
+/**
+ * Erzwingt nur nicht-negative numerische Eingaben.
+ * Optional mit Dezimalstellen und Maximalwert.
+ *
+ * @param {Event} event
+ * @param {string} key - Ziel-Feld in answers
+ * @param {Object} options
+ */
 function enforceNonNegativeInput(event, key, options = {}) {
   const target = event?.target
   if (!target) return
 
   const allowDecimal = options.allowDecimal === true
   const maxValue = Number.isFinite(options.max) ? options.max : null
-  const raw = String(target.value ?? '')
 
-  if (raw === '') {
-    answers[key] = ''
-    return
-  }
+  let cleaned = String(target.value ?? '')
+    .replace(',', '.')
+    .replace(allowDecimal ? /[^0-9.]/g : /[^0-9]/g, '')
 
-  if (raw.includes('-')) {
-    answers[key] = ''
-    target.value = ''
-    return
-  }
-
-  let cleaned = raw.replace(',', '.')
-  cleaned = cleaned.replace(allowDecimal ? /[^0-9.]/g : /[^0-9]/g, '')
-
-  if (allowDecimal) {
-    const parts = cleaned.split('.')
-    cleaned = parts.shift() + (parts.length ? `.${parts.join('')}` : '')
-    if (cleaned.startsWith('.')) cleaned = `0${cleaned}`
-  }
-
+  if (cleaned.startsWith('.')) cleaned = `0${cleaned}`
   if (cleaned === '' || cleaned === '.') {
     answers[key] = ''
     target.value = ''
     return
   }
 
-  const num = Number(cleaned)
-  if (Number.isNaN(num) || num < 0) {
-    answers[key] = ''
-    target.value = ''
-    return
-  }
+  let num = Number(cleaned)
+  if (Number.isNaN(num) || num < 0) num = 0
+  if (maxValue !== null && num > maxValue) num = maxValue
 
-  let finalValue = allowDecimal ? num : Math.floor(num)
-  if (maxValue !== null && finalValue > maxValue) finalValue = maxValue
-
-  cleaned = allowDecimal ? String(finalValue) : String(Math.floor(finalValue))
-
-  answers[key] = cleaned
-  if (target.value !== cleaned) target.value = cleaned
+  answers[key] = allowDecimal ? String(num) : String(Math.floor(num))
+  target.value = answers[key]
 }
 
+/* ================= Navigation-Logik ================= */
+
+/**
+ * Prüft, ob der Nutzer zum nächsten Schritt darf.
+ */
 const canProceed = computed(() => {
   const v = answers
   switch (currentStep.value) {
     case 'headache':
       return hasValue(v.headache) && (v.headache === 'no' || hasValue(v.headacheDuration))
     case 'sleep':
-      return hasValue(v.sleepHours) && hasValue(v.sleepQuality)
+      return hasValue(v.sleepHours)
     case 'water':
       return hasValue(v.waterLiters)
     case 'caffeine':
-      if (!hasValue(v.caffeine)) return false
-      return v.caffeine === 'no' ? true : hasValue(v.caffeineCups)
+      return v.caffeine === 'no' || hasValue(v.caffeineCups)
     case 'work':
       return true
     case 'screen':
@@ -409,36 +538,23 @@ const canProceed = computed(() => {
   }
 })
 
+/* ================= Watcher ================= */
+
+/**
+ * Setzt abhängige Felder zurück.
+ */
+watch(() => answers.headache, v => v !== 'yes' && (answers.headacheDuration = ''))
+watch(() => answers.caffeine, v => v !== 'yes' && (answers.caffeineCups = ''))
+
+/* ================= Modals ================= */
+
 function openTip() {
   showTip.value = true
 }
 
-function handleHeroError(event) {
-  const target = event?.target
-  if (target?.src && !target.src.endsWith(heroFallbackSrc)) {
-    target.src = heroFallbackSrc
-  }
-}
-
-watch(
-  () => answers.headache,
-  (value) => {
-    if (value !== 'yes') answers.headacheDuration = ''
-  },
-)
-
-watch(
-  () => answers.caffeine,
-  (value) => {
-    if (value !== 'yes') answers.caffeineCups = ''
-  },
-)
-
 function closeTip() {
   showTip.value = false
-  nextTick(() => {
-    tipButtonFocused.value = true
-  })
+  nextTick(() => (tipButtonFocused.value = true))
 }
 
 function openStopConfirm() {
@@ -447,34 +563,27 @@ function openStopConfirm() {
 
 function closeStopConfirm() {
   showStopConfirm.value = false
-  nextTick(() => {
-    closeWizardFocused.value = true
-  })
+  nextTick(() => (closeWizardFocused.value = true))
 }
 
+/**
+ * Abbruch des Wizards → zurück zur Home-Seite.
+ */
 async function confirmStop() {
   showStopConfirm.value = false
-  try {
-    await router.push({ name: 'home' })
-  } catch {
-    try {
-      await router.push('/')
-    } catch {
-      router.back()
-    }
-  }
+  await router.push({ name: 'home' })
 }
 
+/* ================= Persistenz ================= */
+
+/**
+ * Speichert die heutige Umfrage in localStorage.
+ */
 function persistTodaySurveyToLocalStorage() {
-  const today = toLocalIsoDate(new Date())
-
-  const headacheYesNo = answers.headache
-  if (headacheYesNo !== 'yes' && headacheYesNo !== 'no') return
-
   const payload = {
-    date: today,
+    date: toLocalIsoDate(new Date()),
     headacheAnswered: true,
-    headache: headacheYesNo === 'yes',
+    headache: answers.headache === 'yes',
     headacheDuration: Number(answers.headacheDuration || 0),
     sleepHours: Number(answers.sleepHours || 0),
     sleepQuality: Number(answers.sleepQuality || 0),
@@ -487,55 +596,14 @@ function persistTodaySurveyToLocalStorage() {
     updatedAt: new Date().toISOString(),
   }
 
-  try {
-    localStorage.setItem(DAILY_SURVEY_STORAGE_KEY, JSON.stringify(payload))
-  } catch {}
+  localStorage.setItem(DAILY_SURVEY_STORAGE_KEY, JSON.stringify(payload))
 }
 
-function calculateStreak(entries) {
-  if (!entries || entries.length === 0) return 0
+/* ================= Abschluss ================= */
 
-  const dates = entries.map((e) => e.date).sort((a, b) => new Date(b) - new Date(a))
-
-  let streak = 0
-  const expected = new Date()
-  expected.setHours(0, 0, 0, 0)
-  expected.setDate(expected.getDate() - 1)
-
-  for (const d of dates) {
-    const current = new Date(d)
-    current.setHours(0, 0, 0, 0)
-
-    if (current.getTime() === expected.getTime()) {
-      streak++
-      expected.setDate(expected.getDate() - 1)
-    } else {
-      break
-    }
-  }
-  return streak
-}
-
-async function calculateFinalStreakFromJson() {
-  const res = await fetch('/headacheEntries.json')
-  const data = await res.json()
-
-  const today = toLocalIsoDate(new Date())
-
-  const answeredBeforeToday = (data || [])
-    .map((e) => ({
-      ...e,
-      headacheAnswered:
-        typeof e?.headacheAnswered === 'boolean'
-          ? e.headacheAnswered
-          : typeof e?.headache === 'boolean',
-    }))
-    .filter((e) => e.headacheAnswered === true && e.date < today)
-
-  const base = calculateStreak(answeredBeforeToday)
-  return base + 1
-}
-
+/**
+ * Weiter zum nächsten Schritt oder Abschluss.
+ */
 async function goNext() {
   setValues({ ...answers }, false)
   await validate()
@@ -543,18 +611,14 @@ async function goNext() {
   if (isLastStep.value) {
     persistTodaySurveyToLocalStorage()
     didDailySurveyToday.value = true
-
-    const finalStreak = await calculateFinalStreakFromJson()
-    router.push({ name: 'streak', params: { streak: finalStreak } })
+    router.push({ name: 'streak', params: { streak: 1 } })
     return
   }
 
-  if (currentStep.value === 'work' && !hasValue(answers.workHours)) {
-    answers.workHours = 0
-  }
   stepIndex.value++
 }
 </script>
+
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&display=swap');

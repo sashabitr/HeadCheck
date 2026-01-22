@@ -1,11 +1,31 @@
 <template>
+  <!-- Container für die Ja/Nein-Auswahl -->
   <div class="choice-group">
-    <label class="choice" :class="{ 'is-selected': model === 'yes' }">
-      <input v-model="model" type="radio" value="yes" />
+    <!-- YES-Option -->
+    <label
+      class="choice"
+      :class="{ 'is-selected': model === 'yes' }"
+    >
+      <!-- Radio-Input für "yes" -->
+      <input
+        v-model="model"
+        type="radio"
+        value="yes"
+      />
       <span>{{ yesLabel }}</span>
     </label>
-    <label class="choice" :class="{ 'is-selected': model === 'no' }">
-      <input v-model="model" type="radio" value="no" />
+
+    <!-- NO-Option -->
+    <label
+      class="choice"
+      :class="{ 'is-selected': model === 'no' }"
+    >
+      <!-- Radio-Input für "no" -->
+      <input
+        v-model="model"
+        type="radio"
+        value="no"
+      />
       <span>{{ noLabel }}</span>
     </label>
   </div>
@@ -14,23 +34,66 @@
 <script setup>
 import { computed } from 'vue'
 
+/**
+ * YesNoChoice-Komponente
+ *
+ * Wiederverwendbare Ja/Nein-Auswahl basierend auf Radio-Buttons.
+ * Die Komponente ist vollständig kompatibel mit v-model.
+ *
+ * Einsatz z.B.:
+ * <YesNoChoice v-model="answers.headache" />
+ */
+
+/**
+ * Props der Komponente.
+ */
 const props = defineProps({
+  /**
+   * Aktueller Wert des v-model.
+   * Erwartete Werte:
+   * - 'yes'
+   * - 'no'
+   * - '' (noch keine Auswahl)
+   */
   modelValue: {
     type: String,
     default: '',
   },
+
+  /**
+   * Beschriftung für die "Ja"-Option.
+   */
   yesLabel: {
     type: String,
     default: 'yes',
   },
+
+  /**
+   * Beschriftung für die "Nein"-Option.
+   */
   noLabel: {
     type: String,
     default: 'no',
   },
 })
 
-const emit = defineEmits(['update:modelValue'])
+/**
+ * Events, die von der Komponente emittiert werden.
+ */
+const emit = defineEmits([
+  /**
+   * Update-Event für v-model.
+   * Wird ausgelöst, wenn der Nutzer eine Auswahl trifft.
+   */
+  'update:modelValue',
+])
 
+/**
+ * Computed Property als v-model-Bridge.
+ *
+ * - get(): liefert den aktuellen Wert aus den Props
+ * - set(): emittiert Änderungen an die Parent-Komponente
+ */
 const model = computed({
   get() {
     return props.modelValue
@@ -40,6 +103,7 @@ const model = computed({
   },
 })
 </script>
+
 
 <style scoped>
 .choice-group {

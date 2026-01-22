@@ -54,6 +54,7 @@
   { "date": "2026-01-07", "headache": true, "headacheDurationHours": 3.2, "sleepHours": 5.7, "screenHours": 8, "waterLiters": 1.4, "stressLevel": 4, "caffeine": true }, 
   { "date": "2026-01-08", "headache": false, "headacheDurationHours": 0, "sleepHours": 7.8, "screenHours": 5, "waterLiters": 2.2, "stressLevel": 2, "caffeine": false }, 
   { "date": "2026-01-09", "headache": false, "headacheDurationHours": 0, "sleepHours": 8.2, "screenHours": 4, "waterLiters": 2.5, "stressLevel": 1, "caffeine": false }, 
+  
   { "date": "2026-01-10", "headache": true, "headacheDurationHours": 3.6, "sleepHours": 5.4, "screenHours": 9, "waterLiters": 1.2, "stressLevel": 4, "caffeine": false }, 
   { "date": "2026-01-11", "headache": false, "headacheDurationHours": 0, "sleepHours": 7.6, "screenHours": 5, "waterLiters": 2.1, "stressLevel": 2, "caffeine": false }, 
   { "date": "2026-01-12", "headache": false, "headacheDurationHours": 0, "sleepHours": 8.0, "screenHours": 4, "waterLiters": 2.4, "stressLevel": 1, "caffeine": false }, 
@@ -64,5 +65,27 @@
   { "date": "2026-01-17", "headache": false, "headacheDurationHours": 0, "sleepHours": 7.9, "screenHours": 4, "waterLiters": 2.5, "stressLevel": 1, "caffeine": false }, 
   { "date": "2026-01-18", "headache": false, "headacheDurationHours": 0, "sleepHours": 8.1, "screenHours": 3, "waterLiters": 2.7, "stressLevel": 1, "caffeine": false }, 
   { "date": "2026-01-19", "headache": true, "headacheDurationHours": 3.3, "sleepHours": 5.6, "screenHours": 8, "waterLiters": 1.3, "stressLevel": 4, "caffeine": false }, 
-  { "date": "2026-01-20", "headache": false, "headacheDurationHours": 0, "sleepHours": 8.4, "screenHours": 3, "waterLiters": 2.9, "stressLevel": 1, "caffeine": true } 
+  { "date": "2026-01-20", "headache": false, "headacheDurationHours": 0, "sleepHours": 8.4, "screenHours": 3, "waterLiters": 2.9, "stressLevel": 1, "caffeine": true },
+
+  { "date": "2026-01-21", "headache": true,  "headacheDurationHours": 3.5, "sleepHours": 5.0, "screenHours": 9, "waterLiters": 1.2, "stressLevel": 4, "caffeine": false },
+  { "date": "2026-01-22", "headache": false, "headacheDurationHours": 0, "sleepHours": 8.0, "screenHours": 4, "waterLiters": 2.5, "stressLevel": 1, "caffeine": false },
+  { "date": "2026-01-23", "headache": true,  "headacheDurationHours": 2.5, "sleepHours": 5.0, "screenHours": 7, "waterLiters": 0.4, "stressLevel": 3, "caffeine": true },
+  { "date": "2026-01-24", "headache": true, "headacheDurationHours": 1, "sleepHours": 7.8, "screenHours": 5, "waterLiters": 2.0, "stressLevel": 4, "caffeine": false },
+  { "date": "2026-01-25", "headache": true,  "headacheDurationHours": 4.0, "sleepHours": 4.8, "screenHours": 10, "waterLiters": 1.0, "stressLevel": 5, "caffeine": true },
+  { "date": "2026-01-26", "headache": false, "headacheDurationHours": 0, "sleepHours": 7.2, "screenHours": 6, "waterLiters": 2.3, "stressLevel": 2, "caffeine": false },
+  { "date": "2026-01-27", "headache": false, "headacheDurationHours": 0, "sleepHours": 8.1, "screenHours": 4, "waterLiters": 2.6, "stressLevel": 1, "caffeine": false },
+  { "date": "2026-01-28", "headache": true,  "headacheDurationHours": 3.0, "sleepHours": 5.5, "screenHours": 8, "waterLiters": 1.3, "stressLevel": 4, "caffeine": true },
+  { "date": "2026-01-29", "headache": false, "headacheDurationHours": 0, "sleepHours": 7.9, "screenHours": 3, "waterLiters": 2.7, "stressLevel": 1, "caffeine": false },
+  { "date": "2026-01-30", "headache": false, "headacheDurationHours": 0, "sleepHours": 8.3, "screenHours": 4, "waterLiters": 2.8, "stressLevel": 1, "caffeine": false },
+
+  { "date": "2026-02-01", "headache": false, "headacheDurationHours": 0, "sleepHours": 8.1, "screenHours": 3, "waterLiters": 2.7, "stressLevel": 1, "caffeine": false }, 
+  { "date": "2026-02-02", "headache": true, "headacheDurationHours": 3.3, "sleepHours": 5.6, "screenHours": 8, "waterLiters": 1.3, "stressLevel": 4, "caffeine": true }, 
+  { "date": "2026-02-03", "headache": true, "headacheDurationHours": 3.3, "sleepHours": 5.6, "screenHours": 8, "waterLiters": 1.3, "stressLevel": 4, "caffeine": true }, 
+  { "date": "2026-02-04", "headache": false, "headacheDurationHours": 0, "sleepHours": 5.0, "screenHours": 4, "waterLiters": 2.5, "stressLevel": 1, "caffeine": true }, 
+  { "date": "2026-02-05", "headache": false, "headacheDurationHours": 0, "sleepHours": 8.1, "screenHours": 3, "waterLiters": 2.7, "stressLevel": 1, "caffeine": false }, 
+  { "date": "2026-02-06", "headache": false, "headacheDurationHours": 0, "sleepHours": 8.1, "screenHours": 3, "waterLiters": 2.7, "stressLevel": 1, "caffeine": false }, 
+  { "date": "2026-02-07", "headache": true, "headacheDurationHours": 3.2, "sleepHours": 5.7, "screenHours": 8, "waterLiters": 1.4, "stressLevel": 4, "caffeine": true }, 
+  { "date": "2026-02-08", "headache": false, "headacheDurationHours": 0, "sleepHours": 7.8, "screenHours": 5, "waterLiters": 2.2, "stressLevel": 2, "caffeine": false }, 
+  { "date": "2026-02-09", "headache": false, "headacheDurationHours": 0, "sleepHours": 8.2, "screenHours": 4, "waterLiters": 2.5, "stressLevel": 1, "caffeine": false }, 
+  { "date": "2026-02-10", "headache": true, "headacheDurationHours": 3.6, "sleepHours": 5.4, "screenHours": 9, "waterLiters": 1.2, "stressLevel": 4, "caffeine": false }
 ]

@@ -1,9 +1,21 @@
 <template>
+  <!-- Fade-Transition für das Ein- und Ausblenden des Modals -->
   <Transition name="modal-fade">
-    <div v-if="open" class="modal-backdrop" @click.self="handleClose">
+    <!-- Hintergrund (Backdrop); Klick auf den Hintergrund schließt das Modal -->
+    <div
+      v-if="open"
+      class="modal-backdrop"
+      @click.self="handleClose"
+    >
+      <!-- Modal-Fenster -->
       <div class="modal">
+        <!-- Optionaler Titel -->
         <h3 v-if="title">{{ title }}</h3>
+
+        <!-- Standard-Slot für Inhalt (Text, Formulare, etc.) -->
         <slot />
+
+        <!-- Optionaler Actions-Slot (z.B. Buttons) -->
         <div v-if="$slots.actions" class="modal-actions">
           <slot name="actions" />
         </div>
@@ -13,21 +25,66 @@
 </template>
 
 <script setup>
+/**
+ * AppModal-Komponente
+ *
+ * Wiederverwendbares Modal-Fenster mit:
+ * - halbtransparentem Hintergrund (Backdrop)
+ * - optionalem Titel
+ * - flexiblem Inhalt über Slots
+ * - optionalem Action-Bereich (z.B. OK / Cancel)
+ *
+ * Das Modal schließt sich:
+ * - bei Klick auf den Hintergrund
+ * - über das Emit-Event "close"
+ */
+
+/**
+ * Props der Modal-Komponente.
+ */
 const props = defineProps({
+  /**
+   * Steuert, ob das Modal sichtbar ist.
+   * true  → Modal wird angezeigt
+   * false → Modal ist verborgen
+   */
   open: {
     type: Boolean,
     default: false,
   },
+
+  /**
+   * Optionaler Titel des Modals.
+   * Wird nur gerendert, wenn ein String gesetzt ist.
+   */
   title: {
     type: String,
     default: '',
   },
 })
 
-const emit = defineEmits(['close'])
+/**
+ * Events, die die Komponente nach außen emittiert.
+ */
+const emit = defineEmits([
+  /**
+   * Wird ausgelöst, wenn das Modal geschlossen werden soll.
+   */
+  'close',
+])
 
+/**
+ * Schließt das Modal.
+ *
+ * Wird ausgelöst, wenn:
+ * - der Nutzer auf den Hintergrund klickt
+ *
+ * Emitiert das "close"-Event an die Parent-Komponente.
+ */
 function handleClose() {
-  if (props.open) emit('close')
+  if (props.open) {
+    emit('close')
+  }
 }
 </script>
 

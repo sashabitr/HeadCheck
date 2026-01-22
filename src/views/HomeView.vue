@@ -135,19 +135,72 @@ import { useRouter } from 'vue-router'
 import { useDailyStore } from '@/state/dailyState'
 import { useLocalDate } from '@/composables/useLocalDate'
 
+/**
+ * HomeView-Skriptlogik.
+ *
+ * Aufgaben:
+ * - Lädt Seed-Daten aus `headacheEntries.json`
+ * - Ermittelt Streak (aufeinanderfolgende Tage)
+ * - Markiert den heutigen Tag als beantwortet, wenn:
+ *   - der Pinia-Flag `didDailySurveyToday` gesetzt ist (in-memory) ODER
+ *   - ein passender Eintrag im LocalStorage existiert
+ * - Baut Kalenderzellen (inkl. Status rot/grün)
+ * - Berechnet „Usual Habits“ (Durchschnittswerte)
+ */
+
+/**
+ * LocalStorage-Key für den gespeicherten Tages-Check (heute).
+ * Wird genutzt, um den heutigen Tag nach dem Wizard als erledigt zu erkennen.
+ * @type {string}
+ */
 const DAILY_SURVEY_STORAGE_KEY = 'dailySurveyResult'
 
+/** Router-Instanz für Navigation und afterEach-Hook. */
 const router = useRouter()
+
+/** Pinia-Store für Daily-State. */
 const dailyStore = useDailyStore()
+
+/**
+ * Reaktiver Store-Ref: True, wenn der Daily Survey heute abgeschlossen wurde (nur RAM).
+ * @type {import('vue').Ref<boolean>}
+ */
 const { didDailySurveyToday } = storeToRefs(dailyStore)
+
+/**
+ * Composable für lokale Datumsformatierung (YYYY-MM-DD ohne UTC-Shift).
+ */
 const { toLocalIsoDate } = useLocalDate()
 
+/**
+ * Alle Einträge (Seed-/JSON-Daten).
+ * @type {import('vue').Ref<Array<Record<string, any>>>}
+ */
 const entries = ref([])
+
+/**
+ * Aktuelle Streak-Anzahl.
+ * @type {import('vue').Ref<number>}
+ */
 const streak = ref(0)
+
+/**
+ * True, wenn „heute erledigt“ (für Badge-Zustand).
+ * @type {import('vue').Ref<boolean>}
+ */
 const hasTodayEntry = ref(false)
 
 /* ---------- mood ---------- */
+/**
+ * Verfügbare Mood-Emojis.
+ * @type {string[]}
+ */
 const moodEmojis = ['😄', '🙂', '😐', '😕', '😫']
+
+/**
+ * Aktuell ausgewähltes Mood (UI-only).
+ * @type {import('vue').Ref<string|null>}
+ */
 const selectedMood = ref(null)
 
 /* ---------- navigation ---------- */
@@ -165,25 +218,62 @@ function goReport() {
 }
 
 /* ---------- date helpers (lokal, ohne UTC shift) ---------- */
+
+/**
+ * Formatiert eine Zahl zweistellig (z. B. 3 → "03").
+ * @param {number} n
+ * @returns {string}
+ */
 function pad2(n) {
   return String(n).padStart(2, '0')
 }
 
+/**
+ * Heutiges Datum im lokalen ISO-Format (YYYY-MM-DD).
+ * @type {import('vue').ComputedRef<string>}
+ */
 const todayStr = computed(() => toLocalIsoDate(new Date()))
 
+/**
+ * Erstellt einen ISO-Datumsstring aus Jahr, Monat und Tag.
+ * @param {number} year - Jahr (z. B. 2026)
+ * @param {number} monthIndex - Monat (0-indexed, 0=Jan)
+ * @param {number} day - Tag (1-31)
+ * @returns {string} Datum als "YYYY-MM-DD"
+ */
 function makeDateStr(year, monthIndex, day) {
   return `${year}-${pad2(monthIndex + 1)}-${pad2(day)}`
 }
 
+/**
+ * Prüft, ob ein Datum vor dem heutigen Tag liegt.
+ * @param {string} dateStr - Datum "YYYY-MM-DD"
+ * @returns {boolean}
+ */
 function isBeforeToday(dateStr) {
   return dateStr < todayStr.value
 }
 
+/**
+ * Prüft, ob ein Datum der heutige Tag ist.
+ * @param {string} dateStr - Datum "YYYY-MM-DD"
+ * @returns {boolean}
+ */
 function isToday(dateStr) {
   return dateStr === todayStr.value
 }
 
 /* ---------- localStorage parsing (robust) ---------- */
+
+/**
+ * Normalisiert eine beliebige Headache-Antwort in einen Status:
+ * - 'red'   → Headache
+ * - 'green' → kein Headache
+ * - null    → unbekannt / nicht interpretierbar
+ *
+ * @param {unknown} v - beliebiger Wert aus LocalStorage
+ * @returns {'red'|'green'|null}
+ */
 function normalizeHeadacheToStatus(v) {
   if (typeof v === 'boolean') return v ? 'red' : 'green'
   if (typeof v === 'number') return v === 1 ? 'red' : v === 0 ? 'green' : null
@@ -195,6 +285,13 @@ function normalizeHeadacheToStatus(v) {
   return null
 }
 
+/**
+ * Extrahiert den Status aus einem geparsten LocalStorage-Objekt,
+ * indem mehrere mögliche Feldnamen ausprobiert werden.
+ *
+ * @param {unknown} parsed - Ergebnis von JSON.parse(...)
+ * @returns {'red'|'green'|null}
+ */
 function extractStatusFromParsed(parsed) {
   if (!parsed || typeof parsed !== 'object') return null
   return (
@@ -207,6 +304,13 @@ function extractStatusFromParsed(parsed) {
   )
 }
 
+/**
+ * Prüft, ob ein gespeichertes Datum zum heutigen Tag passt.
+ * Akzeptiert sowohl lokale ISO-Daten als auch UTC-ISO (zur Sicherheit).
+ *
+ * @param {unknown} dateValue - gespeicherter Datumswert
+ * @returns {boolean}
+ */
 function dateMatchesToday(dateValue) {
   const stored = String(dateValue || '').slice(0, 10)
   if (!stored) return false
@@ -217,6 +321,15 @@ function dateMatchesToday(dateValue) {
   return stored === localToday || stored === utcToday
 }
 
+/**
+ * Liest den „heute erledigt“-Status aus dem LocalStorage.
+ *
+ * Ablauf:
+ * 1) Versucht den erwarteten Key (DAILY_SURVEY_STORAGE_KEY).
+ * 2) Falls das nicht klappt, scannt es alle Keys (Fallback).
+ *
+ * @returns {'red'|'green'|null}
+ */
 function readTodaySurveyStatusFromLocalStorage() {
   // 1) expected key
   try {
@@ -229,7 +342,7 @@ function readTodaySurveyStatusFromLocalStorage() {
       }
     }
   } catch {
-    // ignore
+    // ignorieren (z. B. ungültiges JSON)
   }
 
   // 2) scan all keys (fallback)
@@ -254,13 +367,28 @@ function readTodaySurveyStatusFromLocalStorage() {
   return null
 }
 
+/**
+ * Status des heutigen Tages aus LocalStorage (rot/grün/null).
+ * @type {import('vue').Ref<'red'|'green'|null>}
+ */
 const todayLocalStatus = ref(null)
 
+/**
+ * Aktualisiert todayLocalStatus (Neu-Lesen aus LocalStorage).
+ */
 function refreshTodayLocalStatus() {
   todayLocalStatus.value = readTodaySurveyStatusFromLocalStorage()
 }
 
 /* ---------- init + migration ---------- */
+
+/**
+ * Initialisierung der Home-View:
+ * - setzt den Kalender auf den aktuellen Monat (innerhalb der Grenzen)
+ * - liest heutigen LocalStorage-Status
+ * - lädt Seed-Daten aus JSON und normalisiert `headacheAnswered`
+ * - berechnet Streak/Badge
+ */
 onMounted(async () => {
   setCalendarToTodayClamped()
   refreshTodayLocalStatus()
@@ -280,6 +408,12 @@ onMounted(async () => {
   recomputeStreakState()
 })
 
+/**
+ * Berechnet Streak + „heute erledigt“ Zustand neu.
+ * Grundlage:
+ * - Streak basiert nur auf Tagen < heute, die beantwortet sind
+ * - Heute zählt zusätzlich, wenn in-memory Flag oder LocalStorage vorhanden ist
+ */
 function recomputeStreakState() {
   refreshTodayLocalStatus()
 
@@ -296,6 +430,10 @@ function recomputeStreakState() {
   streak.value = baseStreak + (doneToday ? 1 : 0)
 }
 
+/**
+ * Reagiert auf Änderungen des in-memory Flags (Pinia),
+ * z. B. wenn der Wizard abgeschlossen wurde.
+ */
 watch(
   () => didDailySurveyToday.value,
   () => {
@@ -304,21 +442,43 @@ watch(
 )
 
 /* SPA navigation back to home */
+
+/**
+ * Router-Hook: Wenn innerhalb der SPA wieder nach /home navigiert wird,
+ * wird der Streak-Status erneut berechnet.
+ */
 const removeAfterEach = router.afterEach((to) => {
   if (to?.path === '/home') recomputeStreakState()
 })
 
+/**
+ * Focus-Handler: Wenn das Browserfenster wieder aktiv wird,
+ * (z. B. nach Tab-Wechsel) wird der Status aktualisiert.
+ */
 function onFocus() {
   recomputeStreakState()
 }
 
+/** Registriert den Focus-Listener über vueuse. */
 useEventListener(window, 'focus', onFocus)
 
+/** Cleanup: Router-Hook wieder entfernen. */
 onBeforeUnmount(() => {
   removeAfterEach()
 })
 
 /* ---------- streak ---------- */
+
+/**
+ * Berechnet die Streak anhand einer Liste beantworteter Einträge.
+ *
+ * Erwartet:
+ * - entriesList enthält nur Tage < heute
+ * - Einträge sind beantwortet (headacheAnswered === true)
+ *
+ * @param {Array<{date: string}>} entriesList - Liste beantworteter Tage
+ * @returns {number} Anzahl aufeinanderfolgender Tage bis gestern
+ */
 function calculateStreak(entriesList) {
   if (!entriesList || entriesList.length === 0) return 0
 
@@ -346,16 +506,46 @@ function calculateStreak(entriesList) {
 
 /* ---------- calendar bounds ---------- */
 /* Grenzen: Sep 2025 bis Sep 2026 */
+
+/**
+ * Minimales Kalenderdatum (Monat/Jahr) – inklusiv.
+ * @type {{month: number, year: number}}
+ */
 const minDate = { month: 8, year: 2025 } // September 2025 (0-indexed)
+
+/**
+ * Maximales Kalenderdatum (Monat/Jahr) – inklusiv.
+ * @type {{month: number, year: number}}
+ */
 const maxDate = { month: 8, year: 2026 } // September 2026
 
+/**
+ * Aktuell angezeigter Monat (0-indexed).
+ * @type {import('vue').Ref<number>}
+ */
 const currentMonth = ref(minDate.month)
+
+/**
+ * Aktuell angezeigtes Jahr.
+ * @type {import('vue').Ref<number>}
+ */
 const currentYear = ref(minDate.year)
 
+/**
+ * Hilfsfunktion: berechnet einen linearen Monatsindex (Jahr*12 + Monat),
+ * damit man Monatsgrenzen einfach clampen kann.
+ *
+ * @param {{year: number, month: number}} param0
+ * @returns {number}
+ */
 function monthKey({ year, month }) {
   return year * 12 + month
 }
 
+/**
+ * Setzt den Kalender auf den aktuellen Monat (heute),
+ * begrenzt auf minDate/maxDate.
+ */
 function setCalendarToTodayClamped() {
   const now = new Date()
   const desired = { year: now.getFullYear(), month: now.getMonth() }
@@ -369,6 +559,10 @@ function setCalendarToTodayClamped() {
   currentMonth.value = clampedK % 12
 }
 
+/**
+ * Monatsnamen (Anzeige).
+ * @type {string[]}
+ */
 const monthNames = [
   'January',
   'February',
@@ -383,24 +577,53 @@ const monthNames = [
   'November',
   'December',
 ]
+
+/**
+ * Angezeigter Monatsname.
+ * @type {import('vue').ComputedRef<string>}
+ */
 const currentMonthName = computed(() => monthNames[currentMonth.value])
 
+/**
+ * Liefert die Anzahl der Tage in einem Monat.
+ * @param {number} year
+ * @param {number} monthIndex - 0-indexed
+ * @returns {number}
+ */
 function getDaysInMonth(year, monthIndex) {
   return new Date(year, monthIndex + 1, 0).getDate()
 }
 
+/**
+ * Liefert den Wochentag des 1. Tages im Monat, aber Monday-based.
+ * (0 = Montag, 6 = Sonntag)
+ *
+ * @param {number} year
+ * @param {number} monthIndex - 0-indexed
+ * @returns {number}
+ */
 function getMondayBasedFirstWeekday(year, monthIndex) {
   const jsDay = new Date(year, monthIndex, 1).getDay()
   return (jsDay + 6) % 7
 }
 
+/**
+ * True, wenn der aktuelle Monat bereits das Minimum ist.
+ * @type {import('vue').ComputedRef<boolean>}
+ */
 const isMinMonth = computed(
   () => currentYear.value === minDate.year && currentMonth.value === minDate.month,
 )
+
+/**
+ * True, wenn der aktuelle Monat bereits das Maximum ist.
+ * @type {import('vue').ComputedRef<boolean>}
+ */
 const isMaxMonth = computed(
   () => currentYear.value === maxDate.year && currentMonth.value === maxDate.month,
 )
 
+/** Wechselt einen Monat zurück (innerhalb der Grenzen). */
 function prevMonth() {
   if (isMinMonth.value) return
   if (currentMonth.value === 0) {
@@ -411,6 +634,7 @@ function prevMonth() {
   }
 }
 
+/** Wechselt einen Monat vor (innerhalb der Grenzen). */
 function nextMonth() {
   if (isMaxMonth.value) return
   if (currentMonth.value === 11) {
@@ -422,6 +646,13 @@ function nextMonth() {
 }
 
 /* ---------- fast lookup ---------- */
+
+/**
+ * Lookup-Map: dateStr → entry
+ * Ermöglicht schnellen Zugriff auf den Eintrag eines Tages.
+ *
+ * @type {import('vue').ComputedRef<Map<string, any>>}
+ */
 const entriesByDate = computed(() => {
   const map = new Map()
   for (const e of entries.value || []) {
@@ -430,6 +661,15 @@ const entriesByDate = computed(() => {
   return map
 })
 
+/**
+ * Bestimmt den Status für einen Tag im Kalender:
+ * - vor heute: Status aus JSON-Entries (headacheAnswered + headache boolean)
+ * - heute: Status aus LocalStorage (rot/grün/null)
+ * - Zukunft: null
+ *
+ * @param {string} dateStr - Datum "YYYY-MM-DD"
+ * @returns {'red'|'green'|null}
+ */
 function getDayStatus(dateStr) {
   if (isBeforeToday(dateStr)) {
     const e = entriesByDate.value.get(dateStr)
@@ -448,6 +688,13 @@ function getDayStatus(dateStr) {
 }
 
 /* ---------- calendar cells ---------- */
+
+/**
+ * Baut die 6x7 Kalender-Grid-Zellen (inkl. Null-Platzhalter).
+ * Jede echte Zelle enthält: { day, dateStr, status }.
+ *
+ * @type {import('vue').ComputedRef<Array<{day:number,dateStr:string,status:'red'|'green'|null}|null>>}
+ */
 const calendarCells = computed(() => {
   const year = currentYear.value
   const month = currentMonth.value
@@ -470,6 +717,11 @@ const calendarCells = computed(() => {
   return cells
 })
 
+/**
+ * Liefert Klassenobjekt für eine Kalenderzelle anhand ihres Status.
+ * @param {{status: 'red'|'green'|null}} cell
+ * @returns {Record<string, boolean>}
+ */
 function dayButtonClass(cell) {
   return {
     'has-status': cell.status === 'red' || cell.status === 'green',
@@ -479,6 +731,13 @@ function dayButtonClass(cell) {
 }
 
 /* ---------- Normal section ---------- */
+
+/**
+ * Durchschnittswerte der letzten 30 Tage (basierend auf JSON-Einträgen).
+ * Diese Werte werden als „Your Usual Habits“ angezeigt.
+ *
+ * @type {import('vue').ComputedRef<null|{sleep:number,screenTime:number,water:number,caffeine:number}>}
+ */
 const triggerNormal = computed(() => {
   if (entries.value.length === 0) return null
 
@@ -499,6 +758,12 @@ const triggerNormal = computed(() => {
   }
 })
 
+/**
+ * Durchschnittliche „sichere“ Koffeinmenge (Cups) in den letzten 30 Tagen,
+ * berechnet nur für Tage ohne Headache und mit >0 caffeineCups.
+ *
+ * @type {import('vue').ComputedRef<number>}
+ */
 const safeCaffeineCups = computed(() => {
   if (entries.value.length === 0) return 0
 
